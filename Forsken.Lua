@@ -38,10 +38,10 @@ local LP = Players.LocalPlayer
 -- ESP CONFIGURATION
 --================================================================--
 local ESP = {
-    Generator = { Enabled = false, Color = Color3.fromRGB(255, 140, 0) },
-    Killer    = { Enabled = false, Color = Color3.fromRGB(255, 50, 50) },
-    Survivor  = { Enabled = false, Color = Color3.fromRGB(240, 240, 240) },
-    Loot      = { Enabled = false, Color = Color3.fromRGB(0, 255, 0) }
+    Generator = { Enabled = false, Color = Color3.fromRGB(255, 140, 0), Transparency = 0.4 },
+    Killer    = { Enabled = false, Color = Color3.fromRGB(255, 50, 50), Transparency = 0.5 },
+    Survivor  = { Enabled = false, Color = Color3.fromRGB(240, 240, 240), Transparency = 0.8 },
+    Loot      = { Enabled = false, Color = Color3.fromRGB(0, 255, 0), Transparency = 0.6 }
 }
 
 local MAX_DISTANCE = 99999
@@ -86,7 +86,7 @@ local function createHighlight(model, color, fillTrans)
     hl.Adornee = model
     hl.FillColor = color
     hl.OutlineColor = Color3.new(1,1,1)
-    hl.FillTransparency = fillTrans or 0.4
+    hl.FillTransparency = fillTrans or 0.9
     hl.OutlineTransparency = 0
     hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     hl.Parent = model
@@ -118,10 +118,12 @@ local function createBillboard(part, text)
 end
 
 local function clearESP(model)
-    if model then
-        if model:FindFirstChild("VGX_ESP_HL") then model.VGX_ESP_HL:Destroy() end
-        for _, child in ipairs(model:GetChildren()) do
-            if child.Name == "VGX_ESP_BILLBOARD" then child:Destroy() end
+    if not model or not model.Parent then return end
+    local hl = model:FindFirstChild("VGX_ESP_HL")
+    if hl then hl:Destroy() end
+    for _, descendant in ipairs(model:GetDescendants()) do
+        if descendant:IsA("BillboardGui") and descendant.Name == "VGX_ESP_BILLBOARD" then
+            descendant:Destroy()
         end
     end
 end
@@ -261,24 +263,26 @@ task.spawn(function()
         end
     end
 end)
---================================================================--
--- MAIN ESP + FEATURES LOOP
---================================================================--
+---==============================================================
+--                           ESP LOOP
+--==============================================================
+
 RunService.Heartbeat:Connect(function()
     if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
     local myPos = LP.Character.HumanoidRootPart.Position
     local playersFolder = Workspace:FindFirstChild("Players")
 
+    --==========================================================
+    -- GENERATOR ESP
+    --==========================================================
     if ESP.Generator.Enabled then
         for model, data in pairs(Tracked.Generators) do
             if model and model.Parent then
                 local root = data.Root
                 if root then
                     local dist = math.floor((root.Position - myPos).Magnitude)
-                    createHighlight(model, ESP.Generator.Color)
-                    createBillboard(root, string.format(
-                        "<font color='rgb(255,140,0)'>Generator</font>\n[%dm]", dist
-                    ))
+                    createHighlight(model, ESP.Generator.Color, ESP.Generator.Transparency)
+                    createBillboard(root, string.format("<font color='rgb(255,140,0)'>Generator</font>\n[%dm]", dist))
                 end
             else
                 Tracked.Generators[model] = nil
@@ -288,52 +292,76 @@ RunService.Heartbeat:Connect(function()
         for model in pairs(Tracked.Generators) do clearESP(model) end
     end
 
-    if playersFolder and (ESP.Killer.Enabled or ESP.Survivor.Enabled) then
-        for role, color in pairs({Killers = ESP.Killer.Color, Survivors = ESP.Survivor.Color}) do
-            local enabled = (role == "Killers" and ESP.Killer.Enabled) or (role == "Survivors" and ESP.Survivor.Enabled)
-            local folder = playersFolder:FindFirstChild(role)
-            if folder and enabled then
-                for _, model in ipairs(folder:GetChildren()) do
+    --==========================================================
+    -- KILLER & SURVIVOR ESP
+    --==========================================================
+    if playersFolder then
+        if ESP.Killer.Enabled then
+            local killerFolder = playersFolder:FindFirstChild("Killers")
+            if killerFolder then
+                for _, model in ipairs(killerFolder:GetChildren()) do
                     if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
                         local dist = math.floor((model.HumanoidRootPart.Position - myPos).Magnitude)
-                        createHighlight(model, color)
+                        createHighlight(model, ESP.Killer.Color, ESP.Killer.Transparency)
                         local head = model:FindFirstChild("Head") or model:FindFirstChildWhichIsA("BasePart")
                         if head then
                             createBillboard(head, string.format(
-                                "<font color='rgb(%d,%d,%d)' size='16'>%s</font>\n<font color='rgb(180,180,180)'>[%dm]</font> <font color='rgb(255,150,0)'>[%s]</font>",
-                                color.R*255, color.G*255, color.B*255, model.Name, dist, role
+                                "<font color='rgb(%d,%d,%d)' size='16'>%s</font>\n" ..
+                                "<font color='rgb(180,180,180)'>[%dm]</font> " ..
+                                "<font color='rgb(255,80,80)'>[Killer]</font>",
+                                ESP.Killer.Color.R * 255, ESP.Killer.Color.G * 255, ESP.Killer.Color.B * 255,
+                                model.Name, dist
                             ))
                         end
                     end
                 end
-            else
-                if folder then
-                    for _, model in ipairs(folder:GetChildren()) do clearESP(model) end
-                end
+            end
+        else
+            local killerFolder = playersFolder:FindFirstChild("Killers")
+            if killerFolder then
+                for _, model in ipairs(killerFolder:GetChildren()) do clearESP(model) end
             end
         end
-    else
-        if playersFolder then
-            for _, role in ipairs({"Killers", "Survivors"}) do
-                local folder = playersFolder:FindFirstChild(role)
-                if folder then
-                    for _, model in ipairs(folder:GetChildren()) do clearESP(model) end
+
+        if ESP.Survivor.Enabled then
+            local survivorFolder = playersFolder:FindFirstChild("Survivors")
+            if survivorFolder then
+                for _, model in ipairs(survivorFolder:GetChildren()) do
+                    if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") then
+                        local dist = math.floor((model.HumanoidRootPart.Position - myPos).Magnitude)
+                        createHighlight(model, ESP.Survivor.Color, ESP.Survivor.Transparency)
+                        local head = model:FindFirstChild("Head") or model:FindFirstChildWhichIsA("BasePart")
+                        if head then
+                            createBillboard(head, string.format(
+                                "<font color='rgb(%d,%d,%d)' size='16'>%s</font>\n" ..
+                                "<font color='rgb(180,180,180)'>[%dm]</font> " ..
+                                "<font color='rgb(100,255,255)'>[Survivor]</font>",
+                                ESP.Survivor.Color.R * 255, ESP.Survivor.Color.G * 255, ESP.Survivor.Color.B * 255,
+                                model.Name, dist
+                            ))
+                        end
+                    end
                 end
+            end
+        else
+            local survivorFolder = playersFolder:FindFirstChild("Survivors")
+            if survivorFolder then
+                for _, model in ipairs(survivorFolder:GetChildren()) do clearESP(model) end
             end
         end
     end
 
-    -- Loot ESP
+    --==========================================================
+    -- LOOT ESP
+    --==========================================================
     if ESP.Loot.Enabled then
         for model, data in pairs(Tracked.Loot) do
             if model and model.Parent then
                 local root = data.Root
                 if root then
                     local dist = math.floor((root.Position - myPos).Magnitude)
-                    createHighlight(model, ESP.Loot.Color, 0.5)
-                    createBillboard(root, string.format(
-                        "<font color='rgb(0,255,0)'>%s</font>\n[%dm]", model.Name, dist
-                    ))
+                    createHighlight(model, ESP.Loot.Color, ESP.Loot.Transparency)
+                    createBillboard(root, string.format("<font color='rgb(0,255,0)'>%s</font>\n[%dm]", model.Name, dist))
                 end
             else
                 Tracked.Loot[model] = nil
@@ -373,10 +401,6 @@ for _, obj in ipairs(Workspace:GetDescendants()) do
         end
     end
 end
-
-
-
-
 --================================================================--
 -- GUI: CREATE WINDOW
 --================================================================--
