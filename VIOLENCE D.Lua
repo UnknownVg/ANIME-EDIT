@@ -65,13 +65,13 @@ local DESIRED_FOV = 95
 
 -- ESP SETTINGS (PUMPKINS ADDED HERE)
 local espSettings = {
-    Survivors  = {Enabled=false, Color=Color3.fromRGB(255,255,255)},
-    Killers    = {Enabled=false, Color=Color3.fromRGB(255,0,0)},
-    Generators = {Enabled=false, Color=Color3.fromRGB(0,170,255)},
-    Pallets    = {Enabled=false, Color=Color3.fromRGB(139,69,19)},
-    ExitGates  = {Enabled=false, Color=Color3.fromRGB(0,255,0)},
-    Windows    = {Enabled=false, Color=Color3.fromRGB(0,255,255)},
-    Pumpkins   = {Enabled=false, Color=Color3.fromRGB(255,140,0)}  -- PUMPKINS ADDED
+    Survivors  = {Enabled=false, Color=Color3.fromRGB(255,255,255), Transparency=0.9},
+    Killers    = {Enabled=false, Color=Color3.fromRGB(255,0,0), Transparency=0.5},
+    Generators = {Enabled=false, Color=Color3.fromRGB(0,170,255), Transparency=0.6},
+    Pallets    = {Enabled=false, Color=Color3.fromRGB(139,69,19), Transparency=0.6},
+    ExitGates  = {Enabled=false, Color=Color3.fromRGB(0,255,0), Transparency=0.5},
+    Windows    = {Enabled=false, Color=Color3.fromRGB(0,255,255), Transparency=0.6},
+    Pumpkins   = {Enabled=false, Color=Color3.fromRGB(255,140,0), Transparency=0.5}
 }
 
 local playerHitboxes = {}
@@ -161,7 +161,7 @@ end
 --================================================================--
 -- ESP FUNCTIONS
 --================================================================--
-local function ensureHighlight(model, color)
+local function ensureHighlight(model, color, transparency)
     if not model then return end
     local hl = model:FindFirstChild("VD_HL")
     if not hl then
@@ -169,13 +169,14 @@ local function ensureHighlight(model, color)
         hl.Name = "VD_HL"
         hl.Adornee = model
         hl.FillColor = color
-        hl.FillTransparency = 0.7
+        hl.FillTransparency = transparency or 0.7
         hl.OutlineColor = Color3.fromRGB(255,255,255)
         hl.OutlineTransparency = 0
         hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         hl.Parent = model
     else
         hl.FillColor = color
+        hl.FillTransparency = transparency or 0.7
     end
 end
 
