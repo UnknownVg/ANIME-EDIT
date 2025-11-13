@@ -706,7 +706,7 @@ InfoRight:AddButton({
 local HitboxLeft = MainTab:AddLeftGroupbox("HITBOX", "scan")
 
 HitboxLeft:AddToggle("KillerHitbox", {
-    Text = "Killer Hitbox Expander",
+    Text = "Hitbox (Killer)",
     Default = false,
     Callback = function(state)
         killerHitboxEnabled = state
@@ -715,7 +715,7 @@ HitboxLeft:AddToggle("KillerHitbox", {
 })
 
 HitboxLeft:AddSlider("KillerHitboxSize", {
-    Text = "Killer Hitbox Size",
+    Text = "Hitbox Size",
     Default = 13,
     Min = 4,
     Max = 20,
@@ -726,7 +726,7 @@ HitboxLeft:AddSlider("KillerHitboxSize", {
 })
 
 HitboxLeft:AddToggle("SurvivorHitbox", {
-    Text = "Survivor Hitbox",
+    Text = "Hitbox (Survivor)",
     Default = false,
     Callback = function(state)
         survivorHitboxEnabled = state
@@ -856,6 +856,38 @@ PlayerLeft:AddToggle("BlockHealingRemotes", {
         local result = heal and heal:FindFirstChild("SkillCheckResultEvent")
         if fail and result then
             if enabled then blockRemote(fail); blockRemote(result) else unblockRemote(fail); unblockRemote(result) end
+        end
+    end
+})
+
+
+PlayerLeft:AddButton({
+    Text = "Instant Escape",
+    Func = function()
+        local playerName = LP.Name
+        local playerFolder = workspace:FindFirstChild(playerName)
+        if not playerFolder then
+            Library:Notify({Title = "Error", Description = "You're spectator!", Time = 3})
+            return
+        end
+        
+        local skillGen = playerFolder:FindFirstChild("Skillcheck-gen")
+        local skillPlayer = playerFolder:FindFirstChild("Skillcheck-player")
+        if not skillGen or not skillPlayer then
+            Library:Notify({Title = "Error", Description = "You're spectator!", Time = 3})
+            return
+        end
+        
+        local finishline = Workspace.Map:FindFirstChild("Fininshline")
+        if not finishline then
+            Library:Notify({Title = "Error", Description = "Fininshline not found!", Time = 3})
+            return
+        end
+        
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LP.Character.HumanoidRootPart
+            hrp.CFrame = finishline.CFrame + Vector3.new(0, 5, 0)
+            Library:Notify({Title = "SUCCESS", Description = "Instant Escape!", Time = 3})
         end
     end
 })
