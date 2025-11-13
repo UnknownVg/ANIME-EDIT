@@ -566,6 +566,99 @@ RunService.RenderStepped:Connect(function()
     angle = angle + rotationSpeed
 end)
 
+--================================================================--
+-- AUTO SAFE KILLER SYSTEM
+--================================================================--
+local autoSafeEnabled = false
+local autoSafeDistance = 50
+local safeConnection
+local lastTpTime = 0
+
+local function findSafeObjectAwayFromKiller()
+    local lpPos = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not lpPos then return nil end
+    
+    local safeObjects = {}
+    for obj, typeName in pairs(trackedObjects) do
+        if obj and obj.Parent and (typeName == "Generators" or typeName == "Pallets") then
+            local root = obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if root then
+                local distToPlayer = (root.Position - lpPos.Position).Magnitude
+                safeObjects[#safeObjects + 1] = {obj = root, dist = distToPlayer}
+            end
+        end
+    end
+    
+    local nearestKillerPos = lpPos.Position
+    local nearestKillerDist = math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and getRole(p) == "Killer" then
+            local dist = (p.Character.HumanoidRootPart.Position - lpPos.Position).Magnitude
+            if dist < nearestKillerDist then
+                nearestKillerDist = dist
+                nearestKillerPos = p.Character.HumanoidRootPart.Position
+            end
+        end
+    end
+    
+    local validSafes = {}
+    for _, safe in ipairs(safeObjects) do
+        local distToKiller = (safe.obj.Position - nearestKillerPos).Magnitude
+        if distToKiller > autoSafeDistance * 1.5 then
+            validSafes[#validSafes + 1] = safe
+        end
+    end
+    
+    if #validSafes == 0 then return nil end
+    
+    local randomSafe = validSafes[math.random(1, #validSafes)]
+    return randomSafe.obj
+end
+
+local function tpToSafe()
+    local safeObj = findSafeObjectAwayFromKiller()
+    if safeObj and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        local tpCFrame = safeObj.CFrame + Vector3.new(math.random(-8,8), 3, math.random(-8,8))
+        LP.Character.HumanoidRootPart.CFrame = tpCFrame
+        Library:Notify({Title = "AUTO SAFE", Description = "Teleported to SAFE spot!", Time = 2})
+    end
+end
+
+local function startAutoSafe()
+    if safeConnection then return end
+    safeConnection = RunService.Heartbeat:Connect(function()
+        if not autoSafeEnabled or getRole(LP) ~= "Survivor" or not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local currentTime = tick()
+        if currentTime - lastTpTime < 3 then return end
+        
+        local lpPos = LP.Character.HumanoidRootPart.Position
+        local nearestKillerDist = math.huge
+        
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and getRole(p) == "Killer" then
+                local dist = (p.Character.HumanoidRootPart.Position - lpPos).Magnitude
+                if dist < nearestKillerDist then
+                    nearestKillerDist = dist
+                end
+            end
+        end
+        
+        if nearestKillerDist <= autoSafeDistance then
+            tpToSafe()
+            lastTpTime = currentTime
+        end
+    end)
+end
+
+local function stopAutoSafe()
+    if safeConnection then
+        safeConnection:Disconnect()
+        safeConnection = nil
+    end
+end
+
+
 
 --================================================================--
 -- GUI
@@ -581,6 +674,7 @@ local Window = Library:CreateWindow({
 -- TABS
 local InfoTab   = Window:AddTab("Info", "info")
 local MainTab   = Window:AddTab("Main", "house")
+local AutoTab   = Window:AddTab("Auto", "cpu")
 local EspTab    = Window:AddTab("Visual", "eye")
 local MiscTab   = Window:AddTab("Misc", "settings")
 local SettingsTab = Window:AddTab("Settings", "cog")
@@ -810,7 +904,39 @@ PlayerLeft:AddSlider("RepairLevel", {
         end
     end
 })
+--====================================================--
+--               Auto         --
+--====================================================--
+local AutoLeft = AutoTab:AddLeftGroupbox("AUTOMATION", "cpu")
 
+AutoLeft:AddToggle("AutoSafeKiller", {
+    Text = "Auto Safe (Killer)",
+    Default = false,
+    Callback = function(enabled)
+        autoSafeEnabled = enabled
+        if enabled then 
+            startAutoSafe()
+            Library:Notify({Title = "Auto Safe", Description = "ON - " .. autoSafeDistance .. " studs", Time = 3})
+        else 
+            stopAutoSafe()
+            Library:Notify({Title = "Auto Safe", Description = "OFF", Time = 2})
+        end
+    end
+})
+
+AutoLeft:AddSlider("AutoSafeDistance", {
+    Text = "Trigger Distance",
+    Default = 50,
+    Min = 10,
+    Max = 200,
+    Suffix = " studs",
+    Callback = function(value)
+        autoSafeDistance = value
+        if autoSafeEnabled then
+            Library:Notify({Title = "Auto Safe", Description = "Distance: " .. value .. " studs", Time = 2})
+        end
+    end
+})
 --================================================================--
 -- ESP TAB (PUMPKINS TOGGLE ADDED HERE)
 --================================================================--
@@ -899,6 +1025,7 @@ CrosshairRight:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
 		lineColor = value
 	end,
 })
+
 
 --================================================================--
 -- SETTINGS TAB
