@@ -74,10 +74,7 @@ local espSettings = {
     Pumpkins   = {Enabled=false, Color=Color3.fromRGB(255,140,0), Transparency=0.5}
 }
 
-local playerHitboxes = {}
-local hitboxEnabledAll = false
-local headSize = 12
-local hitboxTransparency = 0.9
+
 
 --================================================================--
 -- ITEM Display Names
@@ -262,23 +259,40 @@ Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 end)
 RunService.RenderStepped:Connect(applyFOV)
 
---================================================================--
--- HITBOX
---================================================================--
-local function applyHitbox(player)
-    if not hitboxEnabledAll or getRole(player) ~= "Survivor" or not player.Character then return end
+--============================================================--
+--                         HITBOX SYSTEM                      --
+--============================================================--
+
+-- Variables
+local survivorHitboxes = {}
+local killerHitboxes = {}
+
+local survivorHitboxEnabled = false
+local killerHitboxEnabled = false
+
+local survivorHitboxSize = 13
+local killerHitboxSize = 13
+
+local hitboxTransparency = 0.9
+
+--============================================================--
+--                       HITBOX FUNCTIONS                     --
+--============================================================--
+
+local function applySurvivorHitbox(player)
+    if not survivorHitboxEnabled or getRole(player) ~= "Survivor" or not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    playerHitboxes[player] = hrp
-    hrp.Size = Vector3.new(headSize, headSize, headSize)
+    survivorHitboxes[player] = hrp
+    hrp.Size = Vector3.new(survivorHitboxSize, survivorHitboxSize, survivorHitboxSize)
     hrp.Transparency = hitboxTransparency
     hrp.BrickColor = BrickColor.new("Really black")
     hrp.Material = Enum.Material.Neon
     hrp.CanCollide = false
 end
 
-local function removeHitbox(player)
-    local hrp = playerHitboxes[player]
+local function removeSurvivorHitbox(player)
+    local hrp = survivorHitboxes[player]
     if hrp and hrp.Parent then
         hrp.Size = Vector3.new(2,2,1)
         hrp.Transparency = 0
@@ -286,21 +300,72 @@ local function removeHitbox(player)
         hrp.Material = Enum.Material.Plastic
         hrp.CanCollide = true
     end
-    playerHitboxes[player] = nil
+    survivorHitboxes[player] = nil
 end
+
+local function applyKillerHitbox(player)
+    if not killerHitboxEnabled or getRole(player) ~= "Killer" or not player.Character then return end
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    killerHitboxes[player] = hrp
+    hrp.Size = Vector3.new(killerHitboxSize, killerHitboxSize, killerHitboxSize)
+    hrp.Transparency = hitboxTransparency
+    hrp.BrickColor = BrickColor.new("Bright red")
+    hrp.Material = Enum.Material.Neon
+    hrp.CanCollide = false
+end
+
+local function removeKillerHitbox(player)
+    local hrp = killerHitboxes[player]
+    if hrp and hrp.Parent then
+        hrp.Size = Vector3.new(2,2,1)
+        hrp.Transparency = 0
+        hrp.BrickColor = BrickColor.new("Medium stone grey")
+        hrp.Material = Enum.Material.Plastic
+        hrp.CanCollide = true
+    end
+    killerHitboxes[player] = nil
+end
+
+--============================================================--
+--                       HITBOX HANDLER                       --
+--============================================================--
 
 for _, p in pairs(Players:GetPlayers()) do
     if p ~= LP then
-        p.CharacterAdded:Connect(function() task.wait(0.5); if hitboxEnabledAll and getRole(p) == "Survivor" then applyHitbox(p) end end)
-        if hitboxEnabledAll and getRole(p) == "Survivor" then applyHitbox(p) end
+        p.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if getRole(p) == "Survivor" and survivorHitboxEnabled then
+                applySurvivorHitbox(p)
+            elseif getRole(p) == "Killer" and killerHitboxEnabled then
+                applyKillerHitbox(p)
+            end
+        end)
     end
 end
 
-Players.PlayerRemoving:Connect(removeHitbox)
+Players.PlayerRemoving:Connect(function(p)
+    removeSurvivorHitbox(p)
+    removeKillerHitbox(p)
+end)
+
 RunService.RenderStepped:Connect(function()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LP then
-            if hitboxEnabledAll and getRole(p) == "Survivor" then applyHitbox(p) else removeHitbox(p) end
+            local role = getRole(p)
+            if role == "Survivor" then
+                if survivorHitboxEnabled then
+                    applySurvivorHitbox(p)
+                else
+                    removeSurvivorHitbox(p)
+                end
+            elseif role == "Killer" then
+                if killerHitboxEnabled then
+                    applyKillerHitbox(p)
+                else
+                    removeKillerHitbox(p)
+                end
+            end
         end
     end
 end)
@@ -446,6 +511,61 @@ local function stopBoost(attr, name)
         Library:Notify({Title = name, Description = "OFF", Time = 2})
     end
 end
+--====================================================--
+--                 SIMPLE CROSSHAIR (UI CONTROL)      --
+--====================================================--
+-- Crosshair settings
+local crosshairEnabled = false
+local lineCount = 4
+local radius = 7
+local lineLength = 15
+local lineColor = Color3.fromRGB(128, 0, 255)
+local thickness = 2
+local rotationSpeed = 0.05
+
+-- Drawing setup
+local lines = {}
+for i = 1, lineCount do
+    local line = Drawing.new("Line")
+    line.Color = lineColor
+    line.Thickness = thickness
+    line.Visible = crosshairEnabled
+    table.insert(lines, line)
+end
+
+local dot = Drawing.new("Circle")
+dot.Radius = 2
+dot.Filled = true
+dot.Color = lineColor
+dot.Visible = crosshairEnabled
+
+-- Crosshair update loop
+local angle = 0
+RunService.RenderStepped:Connect(function()
+    if not crosshairEnabled then
+        for _, line in ipairs(lines) do line.Visible = false end
+        dot.Visible = false
+        return
+    end
+
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for i, line in ipairs(lines) do
+        local a = angle + (math.pi * 2 / lineCount) * (i - 1)
+        local from = Vector2.new(center.X + math.cos(a) * radius, center.Y + math.sin(a) * radius)
+        local to = Vector2.new(center.X + math.cos(a) * (radius + lineLength), center.Y + math.sin(a) * (radius + lineLength))
+        line.From = from
+        line.To = to
+        line.Color = lineColor
+        line.Visible = true
+    end
+
+    dot.Position = center
+    dot.Color = lineColor
+    dot.Visible = true
+    angle = angle + rotationSpeed
+end)
+
 
 --================================================================--
 -- GUI
@@ -461,7 +581,7 @@ local Window = Library:CreateWindow({
 -- TABS
 local InfoTab   = Window:AddTab("Info", "info")
 local MainTab   = Window:AddTab("Main", "house")
-local EspTab    = Window:AddTab("ESP", "eye")
+local EspTab    = Window:AddTab("Visual", "eye")
 local MiscTab   = Window:AddTab("Misc", "settings")
 local SettingsTab = Window:AddTab("Settings", "cog")
 
@@ -487,38 +607,69 @@ InfoRight:AddButton({
 })
 
 --================================================================--
--- MAIN TAB - KILLER (LEFT) | SURVIVOR (RIGHT)
+-- HITBOX 
 --================================================================--
-local KillerLeft = MainTab:AddLeftGroupbox("KILLER FEATURE", "skull")
-local PlayerLeft = MainTab:AddRightGroupbox("SURVIVOR FEATURE", "user")
+local HitboxLeft = MainTab:AddLeftGroupbox("HITBOX", "scan")
 
--- KILLER FEATURES
-KillerLeft:AddToggle("HitboxAll", {
-    Text = "Hitbox Expander",
+HitboxLeft:AddToggle("KillerHitbox", {
+    Text = "Killer Hitbox Expander",
     Default = false,
     Callback = function(state)
-        hitboxEnabledAll = state
-        Library:Notify({Title = "Hitbox Expander", Description = state and "Enabled" or "Disabled", Time = 2})
+        killerHitboxEnabled = state
+        Library:Notify({Title = "Killer Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
     end
 })
 
-KillerLeft:AddSlider("HitboxSize", {
-    Text = "Hitbox Size",
-    Default = 12,
+HitboxLeft:AddSlider("KillerHitboxSize", {
+    Text = "Killer Hitbox Size",
+    Default = 13,
     Min = 4,
-    Max = 50,
+    Max = 20,
     Suffix = " studs",
-    Callback = function(v) headSize = v end
+    Callback = function(v)
+        killerHitboxSize = v
+    end
 })
 
-KillerLeft:AddSlider("HitboxTransparency", {
+HitboxLeft:AddToggle("SurvivorHitbox", {
+    Text = "Survivor Hitbox",
+    Default = false,
+    Callback = function(state)
+        survivorHitboxEnabled = state
+        Library:Notify({Title = "Survivor Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
+    end
+})
+
+HitboxLeft:AddSlider("SurvivorHitboxSize", {
+    Text = "Hitbox Size",
+    Default = 13,
+    Min = 4,
+    Max = 20,
+    Suffix = " studs",
+    Callback = function(v)
+        survivorHitboxSize = v
+    end
+})
+
+HitboxLeft:AddSlider("HitboxTransparency", {
     Text = "Transparency",
     Default = 0.9,
     Min = 0,
     Max = 1,
     Rounding = 2,
-    Callback = function(v) hitboxTransparency = v end
+    Callback = function(v)
+        hitboxTransparency = v
+    end
 })
+
+
+--================================================================--
+-- MAIN TAB - KILLER (LEFT) | SURVIVOR (RIGHT)
+--================================================================--
+local KillerLeft = MainTab:AddRightGroupbox("KILLER", "skull")
+local PlayerLeft = MainTab:AddRightGroupbox("SURVIVOR", "user")
+
+
 
 KillerLeft:AddToggle("KillerThirdPerson", {
     Text = "Third Person (Killer Only)",
@@ -663,7 +814,7 @@ PlayerLeft:AddSlider("RepairLevel", {
 --================================================================--
 -- ESP TAB (PUMPKINS TOGGLE ADDED HERE)
 --================================================================--
-local ESPRight = EspTab:AddLeftGroupbox("ESP FEATURE", "eye")
+local ESPRight = EspTab:AddLeftGroupbox("ESP", "eye")
 
 ESPRight:AddLabel("Halloween Event")
 ESPRight:AddToggle("PumpkinsESP", {  -- PUMPKINS TOGGLE
@@ -681,7 +832,8 @@ ESPRight:AddToggle("ExitGatesESP",     { Text = "Exit Gates ESP",    Default = f
 --================================================================--
 -- MISC TAB
 --================================================================--
-local MiscRight = MiscTab:AddLeftGroupbox("MISC FEATURE", "settings")
+local MiscRight = MiscTab:AddRightGroupbox("MISC", "sun")
+
 
 MiscRight:AddSlider("FOVSlider", {
     Text = "Fov",
@@ -720,6 +872,32 @@ MiscRight:AddToggle("LowGraphics", {
     Callback = function(enabled)
         if enabled then applyLowGraphics() else restoreGraphics() end
     end
+})
+
+
+--====================================================--
+--               UI CONTROL (Toggle + Color)          --
+--====================================================--
+
+local CrosshairRight = MiscTab:AddRightGroupbox("CROSSHAIR", "crosshair")
+
+CrosshairRight:AddToggle("CrosshairToggle", {
+	Text = "Enable Crosshair",
+	Default = false,
+	Callback = function(state)
+		crosshairEnabled = state
+		for _, line in ipairs(lines) do line.Visible = state end
+		dot.Visible = state
+		Library:Notify({Title = "Crosshair", Description = state and "Enabled" or "Disabled", Time = 2})
+	end,
+})
+
+CrosshairRight:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
+	Default = lineColor,
+	Title = "Pick Crosshair Color",
+	Callback = function(value)
+		lineColor = value
+	end,
 })
 
 --================================================================--
