@@ -879,7 +879,7 @@ MiscRight:AddToggle("LowGraphics", {
 --               UI CONTROL (Toggle + Color)          --
 --====================================================--
 
-local CrosshairRight = MiscTab:AddRightGroupbox("CROSSHAIR", "crosshair")
+local CrosshairRight = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
 
 CrosshairRight:AddToggle("CrosshairToggle", {
 	Text = "Enable Crosshair",
