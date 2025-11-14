@@ -249,7 +249,7 @@ end)
 task.spawn(updateFOV)
 
 --================================================================--
--- HITBOX SYSTEM (2 TOGGLES - UNCHANGED)
+-- HITBOX SYSTEM (2 TOGGLES - FIX APPLIED HERE)
 --================================================================--
 local survivorHitboxes = {}
 local killerHitboxes = {}
@@ -262,7 +262,11 @@ local hitboxTransparency = 0.9
 local function applySurvivorHitbox(player)
     if not survivorHitboxEnabled or getRole(player) ~= "Survivor" or not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp or survivorHitboxes[player] then return end
+    
+    -- *** FIX APPLIED: Removed the check 'or survivorHitboxes[player]' ***
+    -- This allows the Heartbeat loop to re-apply properties every frame.
+    if not hrp then return end 
+    
     survivorHitboxes[player] = hrp
     hrp.Size = Vector3.new(survivorHitboxSize, survivorHitboxSize, survivorHitboxSize)
     hrp.Transparency = hitboxTransparency
@@ -286,7 +290,11 @@ end
 local function applyKillerHitbox(player)
     if not killerHitboxEnabled or getRole(player) ~= "Killer" or not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp or killerHitboxes[player] then return end
+    
+    -- *** FIX APPLIED: Removed the check 'or killerHitboxes[player]' ***
+    -- This allows the Heartbeat loop to re-apply properties every frame.
+    if not hrp then return end 
+    
     killerHitboxes[player] = hrp
     hrp.Size = Vector3.new(killerHitboxSize, killerHitboxSize, killerHitboxSize)
     hrp.Transparency = hitboxTransparency
@@ -332,6 +340,7 @@ Players.PlayerRemoving:Connect(function(p)
     removeKillerHitbox(p)
 end)
 
+-- The Heartbeat loop now consistently calls applyHitbox, which always sets the properties.
 RunService.Heartbeat:Connect(function()
     for _, p in Players:GetPlayers() do
         if p ~= LP and p.Character then
