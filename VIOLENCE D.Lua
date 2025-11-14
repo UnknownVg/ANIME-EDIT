@@ -689,36 +689,24 @@ InfoRight:AddButton({
 local KillerLeft  = KillerTab:AddLeftGroupbox("HITBOX", "scan")
 local KillerRight = KillerTab:AddRightGroupbox("KILLER", "skull")
 
-KillerLeft:AddToggle("KillerHitbox", {
-    Text = "Hitbox (Killer)",
+KillerLeft:AddToggle("SurvivorHitbox", {
+    Text = "Hitbox (Survivor)",
     Default = false,
     Callback = function(state)
-        killerHitboxEnabled = state
-        Library:Notify({Title = "Killer Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
+        survivorHitboxEnabled = state
+        Library:Notify({Title = "Survivor Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
     end
 })
 
-KillerLeft:AddSlider("KillerHitboxSize", {
-    Text = "Hitbox Size (Killer)",
+KillerLeft:AddSlider("SurvivorHitboxSize", {
+    Text = "Hitbox Size (Survivor)",
     Default = 13,
     Min = 4,
     Max = 20,
     Suffix = " studs",
     Callback = function(v)
-        killerHitboxSize = v
+        survivorHitboxSize = v
         updateHitboxSizes()
-    end
-})
-
-KillerLeft:AddSlider("HitboxTransparency", {
-    Text = "Transparency",
-    Default = 0.9,
-    Min = 0,
-    Max = 1,
-    Rounding = 2,
-    Callback = function(v)
-        hitboxTransparency = v
-        updateHitboxTransparency()
     end
 })
 
@@ -766,27 +754,39 @@ local SurvivorLeft    = SurvivorTab:AddLeftGroupbox("HITBOX", "scan")
 local AutomationLeft  = SurvivorTab:AddLeftGroupbox("AUTOMATION", "cpu")
 local SurvivorRight   = SurvivorTab:AddRightGroupbox("SURVIVOR", "user")
 
--- HITBOX (LEFT - TOP)
-SurvivorLeft:AddToggle("SurvivorHitbox", {
-    Text = "Hitbox (Survivor)",
+SurvivorLeft:AddToggle("KillerHitbox", {
+    Text = "Hitbox (Killer)",
     Default = false,
     Callback = function(state)
-        survivorHitboxEnabled = state
-        Library:Notify({Title = "Survivor Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
+        killerHitboxEnabled = state
+        Library:Notify({Title = "Killer Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
     end
 })
 
-SurvivorLeft:AddSlider("SurvivorHitboxSize", {
-    Text = "Hitbox Size (Survivor)",
+SurvivorLeft:AddSlider("KillerHitboxSize", {
+    Text = "Hitbox Size (Killer)",
     Default = 13,
     Min = 4,
     Max = 20,
     Suffix = " studs",
     Callback = function(v)
-        survivorHitboxSize = v
+        killerHitboxSize = v
         updateHitboxSizes()
     end
 })
+
+SurvivorLeft:AddSlider("HitboxTransparency", {
+    Text = "Transparency",
+    Default = 0.9,
+    Min = 0,
+    Max = 1,
+    Rounding = 2,
+    Callback = function(v)
+        hitboxTransparency = v
+        updateHitboxTransparency()
+    end
+})
+
 
 -- AUTOMATION (LEFT - BOTTOM)
 AutomationLeft:AddToggle("AutoSafeKiller", {
