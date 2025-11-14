@@ -959,10 +959,11 @@ ESPRight:AddToggle("ExitGatesESP",     { Text = "Exit Gates ESP",    Default = f
 --================================================================--
 -- MISC TAB
 --================================================================--
-local MiscRight   = MiscTab:AddRightGroupbox("MISC", "sun")
-local ServerLeft  = MiscTab:AddLeftGroupbox("SERVER", "server")
+local MiscLeft     = MiscTab:AddLeftGroupbox("MISC", "sun")
+local ServerRight  = MiscTab:AddRightGroupbox("SERVER", "server")
+local CrosshairLeft = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
 
-MiscRight:AddSlider("FOVSlider", {
+MiscLeft:AddSlider("FOVSlider", {
     Text = "Fov",
     Default = 95,
     Min = 70,
@@ -971,7 +972,7 @@ MiscRight:AddSlider("FOVSlider", {
     Callback = function(value) DESIRED_FOV = value end
 })
 
-MiscRight:AddButton({
+MiscLeft:AddButton({
     Text = "Enable Day Mode",
     Func = function()
         local Lighting = game:GetService("Lighting")
@@ -993,7 +994,7 @@ MiscRight:AddButton({
     end
 })
 
-MiscRight:AddToggle("LowGraphics", {
+MiscLeft:AddToggle("LowGraphics", {
     Text = "Low Graphics (FPS Boost)",
     Default = false,
     Callback = function(enabled)
@@ -1001,13 +1002,31 @@ MiscRight:AddToggle("LowGraphics", {
     end
 })
 
+CrosshairLeft:AddToggle("CrosshairToggle", {
+    Text = "Enable Crosshair",
+    Default = false,
+    Callback = function(state)
+        crosshairEnabled = state
+        for _, line in ipairs(lines) do line.Visible = state end
+        dot.Visible = state
+        Library:Notify({Title = "Crosshair", Description = state and "Enabled" or "Disabled", Time = 2})
+    end
+})
 
-ServerLeft:AddLabel("60% Accurate Not 100%")
-ServerLeft:AddDivider()
+CrosshairLeft:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
+    Default = lineColor,
+    Title = "Pick Crosshair Color",
+    Callback = function(value)
+        lineColor = value
+    end
+})
+
+ServerRight:AddLabel("60% Accurate Not 100%")
+ServerRight:AddDivider()
 
 local selectedRegion = "US"
 
-ServerLeft:AddDropdown("RegionDropdown", {
+ServerRight:AddDropdown("RegionDropdown", {
     Text = "Choose Server Region",
     Values = {"US", "Japan", "Philippines/Asia", "China/HK"},
     Default = 1,
@@ -1019,7 +1038,7 @@ ServerLeft:AddDropdown("RegionDropdown", {
     end
 })
 
-ServerLeft:AddButton({
+ServerRight:AddButton({
     Text = "Join Selected Region",
     Func = function()
         if not request then
@@ -1039,7 +1058,6 @@ ServerLeft:AddButton({
         local maxPing = regionPing[selectedRegion] or 200
         local servers = {}
 
-        -- SINGLE REQUEST (NO LOOP = NO FREEZE)
         local success, req = pcall(function()
             return request({
                 Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100",
@@ -1080,9 +1098,9 @@ ServerLeft:AddButton({
     end
 })
 
-ServerLeft:AddDivider()
+ServerRight:AddDivider()
 
-ServerLeft:AddButton({
+ServerRight:AddButton({
     Text = "Server Hop (Random)",
     Func = function()
         Library:Notify({Title = "Server Hop", Description = "Searching for new server...", Time = 3})
@@ -1104,7 +1122,7 @@ ServerLeft:AddButton({
     end
 })
 
-ServerLeft:AddButton({
+ServerRight:AddButton({
     Text = "Rejoin",
     Func = function()
         Library:Notify({Title = "Rejoin", Description = "Rejoining current server...", Time = 2})
@@ -1112,11 +1130,10 @@ ServerLeft:AddButton({
     end
 })
 
+ServerRight:AddLabel("Find Best Server For You")
+ServerRight:AddDivider()
 
-ServerLeft:AddLabel("Find Best Server For You")
-ServerLeft:AddDivider()
-
-ServerLeft:AddButton({
+ServerRight:AddButton({
     Text = "Join LowPing Server",
     Func = function()
         Library:Notify({Title = "Searching", Description = "Finding best server...", Time = 2})
@@ -1159,30 +1176,6 @@ ServerLeft:AddButton({
                 Library:Notify({Title = "No Server", Description = "No available servers found", Time = 3})
             end
         end)
-    end
-})
-
-
-
-
-local CrosshairLeft = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
-
-CrosshairLeft:AddToggle("CrosshairToggle", {
-    Text = "Enable Crosshair",
-    Default = false,
-    Callback = function(state)
-        crosshairEnabled = state
-        for _, line in ipairs(lines) do line.Visible = state end
-        dot.Visible = state
-        Library:Notify({Title = "Crosshair", Description = state and "Enabled" or "Disabled", Time = 2})
-    end
-})
-
-CrosshairLeft:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
-    Default = lineColor,
-    Title = "Pick Crosshair Color",
-    Callback = function(value)
-        lineColor = value
     end
 })
 --================================================================--
