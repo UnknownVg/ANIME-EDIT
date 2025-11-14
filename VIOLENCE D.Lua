@@ -1,6 +1,5 @@
 --================================================================--
 --                    VGXMOD HUB - VIOLENCE DISTRICT 1.7
---                          
 --================================================================--
 
 print("------------------------------------------------------------------")
@@ -25,6 +24,7 @@ end
 
 local Options = Library.Options
 local Toggles = Library.Toggles
+
 --================================================================--
 -- CORE SERVICES
 --================================================================--
@@ -74,8 +74,6 @@ local espSettings = {
     Pumpkins   = {Enabled=false, Color=Color3.fromRGB(255,140,0), Transparency=0.5}
 }
 
-
-
 --================================================================--
 -- ITEM Display Names
 --================================================================--
@@ -110,18 +108,14 @@ local trackedObjects = {}
 local function trackObject(obj)
     if not obj or not obj.Name then return end
     local n = obj.Name:lower()
-
-    -- Find current Map.Pumpkins (even if recreated)
     local map = workspace:FindFirstChild("Map")
     local pumpkinsFolder = map and map:FindFirstChild("Pumpkins")
     
-    -- Only track pumpkins that are DIRECT children of the current Pumpkins folder
     if pumpkinsFolder and obj.Parent == pumpkinsFolder and n:find("pumpkin") then
         trackedObjects[obj] = "Pumpkins"
         return
     end
 
-    -- Track other objects normally
     if n:find("generator") then trackedObjects[obj] = "Generators"
     elseif n:find("pallet") then trackedObjects[obj] = "Pallets"
     elseif n:find("gate") then trackedObjects[obj] = "ExitGates"
@@ -129,20 +123,18 @@ local function trackObject(obj)
     end
 end
 
--- Initial scan
 for _, v in ipairs(Workspace:GetDescendants()) do
     if v:IsA("Model") then trackObject(v) end
 end
 
--- Live tracking (works on new round)
 Workspace.DescendantAdded:Connect(function(obj)
     if obj:IsA("Model") then trackObject(obj) end
 end)
 
--- Optional: clean up when object is removed
 Workspace.DescendantRemoving:Connect(function(obj)
     trackedObjects[obj] = nil
 end)
+
 --================================================================--
 -- GET PLAYER ROLE
 --================================================================--
@@ -178,9 +170,7 @@ local function ensureHighlight(model, color, transparency)
 end
 
 local function clearHighlight(model)
-    if model and model:FindFirstChild("VD_HL") then
-        model.VD_HL:Destroy()
-    end
+    if model and model:FindFirstChild("VD_HL") then model.VD_HL:Destroy() end
 end
 
 local function ensureLabel(model, text)
@@ -215,9 +205,7 @@ local function ensureLabel(model, text)
 end
 
 local function clearLabel(model)
-    if model and model:FindFirstChild("VD_Label") then
-        model.VD_Label:Destroy()
-    end
+    if model and model:FindFirstChild("VD_Label") then model.VD_Label:Destroy() end
 end
 
 --================================================================--
@@ -248,41 +236,33 @@ end
 --================================================================--
 -- FOV
 --================================================================--
-local function applyFOV()
-    if Camera and Camera.FieldOfView ~= DESIRED_FOV then
-        Camera.FieldOfView = DESIRED_FOV
-    end
+local function updateFOV()
+    Camera = Workspace.CurrentCamera
+    if Camera then Camera.FieldOfView = DESIRED_FOV end
 end
+
 Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
     task.wait(0.1)
-    Camera = Workspace.CurrentCamera
+    updateFOV()
 end)
-RunService.RenderStepped:Connect(applyFOV)
 
---============================================================--
---                         HITBOX SYSTEM                      --
---============================================================--
+task.spawn(updateFOV)
 
--- Variables
+--================================================================--
+-- HITBOX SYSTEM (2 TOGGLES - UNCHANGED)
+--================================================================--
 local survivorHitboxes = {}
 local killerHitboxes = {}
-
 local survivorHitboxEnabled = false
 local killerHitboxEnabled = false
-
 local survivorHitboxSize = 13
 local killerHitboxSize = 13
-
 local hitboxTransparency = 0.9
-
---============================================================--
---                       HITBOX FUNCTIONS                     --
---============================================================--
 
 local function applySurvivorHitbox(player)
     if not survivorHitboxEnabled or getRole(player) ~= "Survivor" or not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    if not hrp or survivorHitboxes[player] then return end
     survivorHitboxes[player] = hrp
     hrp.Size = Vector3.new(survivorHitboxSize, survivorHitboxSize, survivorHitboxSize)
     hrp.Transparency = hitboxTransparency
@@ -294,7 +274,7 @@ end
 local function removeSurvivorHitbox(player)
     local hrp = survivorHitboxes[player]
     if hrp and hrp.Parent then
-        hrp.Size = Vector3.new(2,2,1)
+        hrp.Size = Vector3.new(2, 2, 1)
         hrp.Transparency = 0
         hrp.BrickColor = BrickColor.new("Medium stone grey")
         hrp.Material = Enum.Material.Plastic
@@ -306,7 +286,7 @@ end
 local function applyKillerHitbox(player)
     if not killerHitboxEnabled or getRole(player) ~= "Killer" or not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    if not hrp or killerHitboxes[player] then return end
     killerHitboxes[player] = hrp
     hrp.Size = Vector3.new(killerHitboxSize, killerHitboxSize, killerHitboxSize)
     hrp.Transparency = hitboxTransparency
@@ -318,7 +298,7 @@ end
 local function removeKillerHitbox(player)
     local hrp = killerHitboxes[player]
     if hrp and hrp.Parent then
-        hrp.Size = Vector3.new(2,2,1)
+        hrp.Size = Vector3.new(2, 2, 1)
         hrp.Transparency = 0
         hrp.BrickColor = BrickColor.new("Medium stone grey")
         hrp.Material = Enum.Material.Plastic
@@ -327,11 +307,7 @@ local function removeKillerHitbox(player)
     killerHitboxes[player] = nil
 end
 
---============================================================--
---                       HITBOX HANDLER                       --
---============================================================--
-
-for _, p in pairs(Players:GetPlayers()) do
+for _, p in Players:GetPlayers() do
     if p ~= LP then
         p.CharacterAdded:Connect(function()
             task.wait(0.5)
@@ -341,6 +317,13 @@ for _, p in pairs(Players:GetPlayers()) do
                 applyKillerHitbox(p)
             end
         end)
+        if p.Character then
+            if getRole(p) == "Survivor" and survivorHitboxEnabled then
+                applySurvivorHitbox(p)
+            elseif getRole(p) == "Killer" and killerHitboxEnabled then
+                applyKillerHitbox(p)
+            end
+        end
     end
 end
 
@@ -349,29 +332,42 @@ Players.PlayerRemoving:Connect(function(p)
     removeKillerHitbox(p)
 end)
 
-RunService.RenderStepped:Connect(function()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LP then
+RunService.Heartbeat:Connect(function()
+    for _, p in Players:GetPlayers() do
+        if p ~= LP and p.Character then
             local role = getRole(p)
             if role == "Survivor" then
-                if survivorHitboxEnabled then
-                    applySurvivorHitbox(p)
-                else
-                    removeSurvivorHitbox(p)
-                end
+                if survivorHitboxEnabled then applySurvivorHitbox(p) else removeSurvivorHitbox(p) end
             elseif role == "Killer" then
-                if killerHitboxEnabled then
-                    applyKillerHitbox(p)
-                else
-                    removeKillerHitbox(p)
-                end
+                if killerHitboxEnabled then applyKillerHitbox(p) else removeKillerHitbox(p) end
             end
         end
     end
 end)
 
+local function updateHitboxSizes()
+    for player, hrp in pairs(survivorHitboxes) do
+        if hrp and hrp.Parent then
+            hrp.Size = Vector3.new(survivorHitboxSize, survivorHitboxSize, survivorHitboxSize)
+        end
+    end
+    for player, hrp in pairs(killerHitboxes) do
+        if hrp and hrp.Parent then
+            hrp.Size = Vector3.new(killerHitboxSize, killerHitboxSize, killerHitboxSize)
+        end
+    end
+end
+
+local function updateHitboxTransparency()
+    for _, tbl in pairs({survivorHitboxes, killerHitboxes}) do
+        for _, hrp in pairs(tbl) do
+            if hrp and hrp.Parent then hrp.Transparency = hitboxTransparency end
+        end
+    end
+end
+
 --================================================================--
--- ESP LOOP (PUMPKINS ADDED HERE)
+-- ESP LOOP
 --================================================================--
 RunService.Heartbeat:Connect(function()
     local LPPos = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and LP.Character.HumanoidRootPart.Position
@@ -406,7 +402,6 @@ RunService.Heartbeat:Connect(function()
         end
     end
 
-    -- Player ESP
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local role = getRole(p)
@@ -465,21 +460,17 @@ end
 local function restoreGraphics()
     lowGraphicsEnabled = false
     for obj, mat in pairs(originalMaterials) do
-        if obj.Parent then
-            obj.Material = mat
-        end
+        if obj.Parent then obj.Material = mat end
     end
     for obj, trans in pairs(originalTransparencies) do
-        if obj.Parent then
-            obj.Transparency = trans
-        end
+        if obj.Parent then obj.Transparency = trans end
     end
     originalMaterials = {}
     originalTransparencies = {}
 end
 
 --================================================================--
--- REAL BOOST SYSTEM - NO RESET, PERMANENT!
+-- REAL BOOST SYSTEM
 --================================================================--
 local BOOST_LEVELS = {1.1, 1.2, 1.3, 1.4, 1.5}
 local boostConnections = {}
@@ -494,9 +485,7 @@ local function startBoost(attr, level, name)
     if boostConnections[attr] then return end
     
     boostConnections[attr] = RunService.Heartbeat:Connect(function()
-        if LP.Character then
-            applyBoost(attr, level)
-        end
+        if LP.Character then applyBoost(attr, level) end
     end)
     
     local mult = BOOST_LEVELS[level] or 1.0
@@ -511,10 +500,10 @@ local function stopBoost(attr, name)
         Library:Notify({Title = name, Description = "OFF", Time = 2})
     end
 end
---====================================================--
---                 SIMPLE CROSSHAIR (UI CONTROL)      --
---====================================================--
--- Crosshair settings
+
+--================================================================--
+-- CROSSHAIR
+--================================================================--
 local crosshairEnabled = false
 local lineCount = 4
 local radius = 7
@@ -523,7 +512,6 @@ local lineColor = Color3.fromRGB(128, 0, 255)
 local thickness = 2
 local rotationSpeed = 0.05
 
--- Drawing setup
 local lines = {}
 for i = 1, lineCount do
     local line = Drawing.new("Line")
@@ -539,7 +527,6 @@ dot.Filled = true
 dot.Color = lineColor
 dot.Visible = crosshairEnabled
 
--- Crosshair update loop
 local angle = 0
 RunService.RenderStepped:Connect(function()
     if not crosshairEnabled then
@@ -567,7 +554,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --================================================================--
--- AUTO SAFE KILLER SYSTEM
+-- AUTO SAFE KILLER
 --================================================================--
 local autoSafeEnabled = false
 local autoSafeDistance = 50
@@ -638,9 +625,7 @@ local function startAutoSafe()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and getRole(p) == "Killer" then
                 local dist = (p.Character.HumanoidRootPart.Position - lpPos).Magnitude
-                if dist < nearestKillerDist then
-                    nearestKillerDist = dist
-                end
+                if dist < nearestKillerDist then nearestKillerDist = dist end
             end
         end
         
@@ -654,14 +639,12 @@ end
 local function stopAutoSafe()
     if safeConnection then
         safeConnection:Disconnect()
-        safeConnection = nil
+        safeConnection =  nil
     end
 end
 
-
-
 --================================================================--
--- GUI
+-- GUI - LAYOUT ONLY (EXACTLY AS REQUESTED)
 --================================================================--
 local Window = Library:CreateWindow({
     Title = "Vgxmod Hub",
@@ -672,12 +655,12 @@ local Window = Library:CreateWindow({
 })
 
 -- TABS
-local InfoTab   = Window:AddTab("Info", "info")
-local MainTab   = Window:AddTab("Main", "house")
-local AutoTab   = Window:AddTab("Auto", "cpu")
-local EspTab    = Window:AddTab("Visual", "eye")
-local MiscTab   = Window:AddTab("Misc", "settings")
-local SettingsTab = Window:AddTab("Settings", "cog")
+local InfoTab       = Window:AddTab("Info", "info")
+local SurvivorTab   = Window:AddTab("Survivor", "user")
+local KillerTab     = Window:AddTab("Killer", "sword")
+local EspTab        = Window:AddTab("Visual", "eye")
+local MiscTab       = Window:AddTab("Misc", "settings")
+local SettingsTab   = Window:AddTab("Settings", "cog")
 
 --================================================================--
 -- INFO TAB
@@ -701,11 +684,12 @@ InfoRight:AddButton({
 })
 
 --================================================================--
--- HITBOX 
+-- KILLER TAB
 --================================================================--
-local HitboxLeft = MainTab:AddLeftGroupbox("HITBOX", "scan")
+local KillerLeft  = KillerTab:AddLeftGroupbox("HITBOX", "scan")
+local KillerRight = KillerTab:AddRightGroupbox("KILLER", "skull")
 
-HitboxLeft:AddToggle("KillerHitbox", {
+KillerLeft:AddToggle("KillerHitbox", {
     Text = "Hitbox (Killer)",
     Default = false,
     Callback = function(state)
@@ -714,38 +698,19 @@ HitboxLeft:AddToggle("KillerHitbox", {
     end
 })
 
-HitboxLeft:AddSlider("KillerHitboxSize", {
-    Text = "Hitbox Size",
+KillerLeft:AddSlider("KillerHitboxSize", {
+    Text = "Hitbox Size (Killer)",
     Default = 13,
     Min = 4,
     Max = 20,
     Suffix = " studs",
     Callback = function(v)
         killerHitboxSize = v
+        updateHitboxSizes()
     end
 })
 
-HitboxLeft:AddToggle("SurvivorHitbox", {
-    Text = "Hitbox (Survivor)",
-    Default = false,
-    Callback = function(state)
-        survivorHitboxEnabled = state
-        Library:Notify({Title = "Survivor Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
-    end
-})
-
-HitboxLeft:AddSlider("SurvivorHitboxSize", {
-    Text = "Hitbox Size",
-    Default = 13,
-    Min = 4,
-    Max = 20,
-    Suffix = " studs",
-    Callback = function(v)
-        survivorHitboxSize = v
-    end
-})
-
-HitboxLeft:AddSlider("HitboxTransparency", {
+KillerLeft:AddSlider("HitboxTransparency", {
     Text = "Transparency",
     Default = 0.9,
     Min = 0,
@@ -753,19 +718,11 @@ HitboxLeft:AddSlider("HitboxTransparency", {
     Rounding = 2,
     Callback = function(v)
         hitboxTransparency = v
+        updateHitboxTransparency()
     end
 })
 
-
---================================================================--
--- MAIN TAB - KILLER (LEFT) | SURVIVOR (RIGHT)
---================================================================--
-local KillerLeft = MainTab:AddRightGroupbox("KILLER", "skull")
-local PlayerLeft = MainTab:AddRightGroupbox("SURVIVOR", "user")
-
-
-
-KillerLeft:AddToggle("KillerThirdPerson", {
+KillerRight:AddToggle("KillerThirdPerson", {
     Text = "Third Person (Killer Only)",
     Default = false,
     Callback = function(enabled)
@@ -790,7 +747,7 @@ KillerLeft:AddToggle("KillerThirdPerson", {
     end
 })
 
-KillerLeft:AddToggle("BlockFlashlightRemote", {
+KillerRight:AddToggle("BlockFlashlightRemote", {
     Text = "Anti-Blind",
     Default = false,
     Callback = function(enabled)
@@ -802,8 +759,67 @@ KillerLeft:AddToggle("BlockFlashlightRemote", {
     end
 })
 
+--================================================================--
+-- SURVIVOR TAB
+--================================================================--
+local SurvivorLeft    = SurvivorTab:AddLeftGroupbox("HITBOX", "scan")
+local AutomationLeft  = SurvivorTab:AddLeftGroupbox("AUTOMATION", "cpu")
+local SurvivorRight   = SurvivorTab:AddRightGroupbox("SURVIVOR", "user")
 
-PlayerLeft:AddToggle("PerfectSkillCheck", {
+-- HITBOX (LEFT - TOP)
+SurvivorLeft:AddToggle("SurvivorHitbox", {
+    Text = "Hitbox (Survivor)",
+    Default = false,
+    Callback = function(state)
+        survivorHitboxEnabled = state
+        Library:Notify({Title = "Survivor Hitbox", Description = state and "Enabled" or "Disabled", Time = 2})
+    end
+})
+
+SurvivorLeft:AddSlider("SurvivorHitboxSize", {
+    Text = "Hitbox Size (Survivor)",
+    Default = 13,
+    Min = 4,
+    Max = 20,
+    Suffix = " studs",
+    Callback = function(v)
+        survivorHitboxSize = v
+        updateHitboxSizes()
+    end
+})
+
+-- AUTOMATION (LEFT - BOTTOM)
+AutomationLeft:AddToggle("AutoSafeKiller", {
+    Text = "Auto Safe (Survivor)",
+    Default = false,
+    Callback = function(enabled)
+        autoSafeEnabled = enabled
+        if enabled then 
+            startAutoSafe()
+            Library:Notify({Title = "Auto Safe", Description = "ON - " .. autoSafeDistance .. " studs", Time = 3})
+        else 
+            stopAutoSafe()
+            Library:Notify({Title = "Auto Safe", Description = "OFF", Time = 2})
+        end
+    end
+})
+
+AutomationLeft:AddSlider("AutoSafeDistance", {
+    Text = "Trigger Distance",
+    Default = 50,
+    Min = 10,
+    Max = 200,
+    Suffix = " studs",
+    Callback = function(value)
+        autoSafeDistance = value
+        if autoSafeEnabled then
+            Library:Notify({Title = "Auto Safe", Description = "Distance: " .. value .. " studs", Time = 2})
+        end
+    end
+})
+
+-- SURVIVOR FEATURES (RIGHT)
+SurvivorRight:AddToggle("PerfectSkillCheck", {
     Text = "Perfect SkillCheck Gen",
     Default = false,
     Callback = function(enabled)
@@ -833,21 +849,8 @@ PlayerLeft:AddToggle("PerfectSkillCheck", {
         end
     end
 })
---[[
-PlayerLeft:AddToggle("BlockGeneratorRemotes", {
-    Text = "Anti-Fail Generator",
-    Default = false,
-    Callback = function(enabled)
-        local gen = remotes and remotes:FindFirstChild("Generator")
-        local fail = gen and gen:FindFirstChild("SkillCheckFailEvent")
-        local result = gen and gen:FindFirstChild("SkillCheckResultEvent")
-        if fail and result then
-            if enabled then blockRemote(fail); blockRemote(result) else unblockRemote(fail); unblockRemote(result) end
-        end
-    end
-})
-]]
-PlayerLeft:AddToggle("BlockHealingRemotes", {
+
+SurvivorRight:AddToggle("BlockHealingRemotes", {
     Text = "Perfect SkillCheck Healing",
     Default = false,
     Callback = function(enabled)
@@ -860,8 +863,7 @@ PlayerLeft:AddToggle("BlockHealingRemotes", {
     end
 })
 
-
-PlayerLeft:AddButton({
+SurvivorRight:AddButton({
     Text = "Instant Escape",
     Func = function()
         local playerName = LP.Name
@@ -892,8 +894,7 @@ PlayerLeft:AddButton({
     end
 })
 
-
-PlayerLeft:AddToggle("SpeedBoostToggle", {
+SurvivorRight:AddToggle("SpeedBoostToggle", {
     Text = "Speed Boost",
     Default = false,
     Callback = function(enabled)
@@ -902,7 +903,7 @@ PlayerLeft:AddToggle("SpeedBoostToggle", {
     end
 })
 
-PlayerLeft:AddSlider("SpeedLevel", {
+SurvivorRight:AddSlider("SpeedLevel", {
     Text = "Boost Level",
     Default = 1,
     Min = 1,
@@ -915,7 +916,7 @@ PlayerLeft:AddSlider("SpeedLevel", {
     end
 })
 
-PlayerLeft:AddToggle("RepairBoostToggle", {
+SurvivorRight:AddToggle("RepairBoostToggle", {
     Text = "Repair Boost",
     Default = false,
     Callback = function(enabled)
@@ -924,7 +925,7 @@ PlayerLeft:AddToggle("RepairBoostToggle", {
     end
 })
 
-PlayerLeft:AddSlider("RepairLevel", {
+SurvivorRight:AddSlider("RepairLevel", {
     Text = "Boost Level",
     Default = 1,
     Min = 1,
@@ -936,46 +937,14 @@ PlayerLeft:AddSlider("RepairLevel", {
         end
     end
 })
---====================================================--
---               Auto         --
---====================================================--
-local AutoLeft = AutoTab:AddLeftGroupbox("AUTOMATION", "cpu")
 
-AutoLeft:AddToggle("AutoSafeKiller", {
-    Text = "Auto Safe (Killer)",
-    Default = false,
-    Callback = function(enabled)
-        autoSafeEnabled = enabled
-        if enabled then 
-            startAutoSafe()
-            Library:Notify({Title = "Auto Safe", Description = "ON - " .. autoSafeDistance .. " studs", Time = 3})
-        else 
-            stopAutoSafe()
-            Library:Notify({Title = "Auto Safe", Description = "OFF", Time = 2})
-        end
-    end
-})
-
-AutoLeft:AddSlider("AutoSafeDistance", {
-    Text = "Trigger Distance",
-    Default = 50,
-    Min = 10,
-    Max = 200,
-    Suffix = " studs",
-    Callback = function(value)
-        autoSafeDistance = value
-        if autoSafeEnabled then
-            Library:Notify({Title = "Auto Safe", Description = "Distance: " .. value .. " studs", Time = 2})
-        end
-    end
-})
 --================================================================--
--- ESP TAB (PUMPKINS TOGGLE ADDED HERE)
+-- VISUAL TAB
 --================================================================--
 local ESPRight = EspTab:AddLeftGroupbox("ESP", "eye")
 
 ESPRight:AddLabel("Halloween Event")
-ESPRight:AddToggle("PumpkinsESP", {  -- PUMPKINS TOGGLE
+ESPRight:AddToggle("PumpkinsESP", {  
     Text = "Pumpkins ESP",
     Default = false,
     Callback = function(v) espSettings.Pumpkins.Enabled = v end
@@ -991,7 +960,6 @@ ESPRight:AddToggle("ExitGatesESP",     { Text = "Exit Gates ESP",    Default = f
 -- MISC TAB
 --================================================================--
 local MiscRight = MiscTab:AddRightGroupbox("MISC", "sun")
-
 
 MiscRight:AddSlider("FOVSlider", {
     Text = "Fov",
@@ -1032,32 +1000,26 @@ MiscRight:AddToggle("LowGraphics", {
     end
 })
 
-
---====================================================--
---               UI CONTROL (Toggle + Color)          --
---====================================================--
-
 local CrosshairRight = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
 
 CrosshairRight:AddToggle("CrosshairToggle", {
-	Text = "Enable Crosshair",
-	Default = false,
-	Callback = function(state)
-		crosshairEnabled = state
-		for _, line in ipairs(lines) do line.Visible = state end
-		dot.Visible = state
-		Library:Notify({Title = "Crosshair", Description = state and "Enabled" or "Disabled", Time = 2})
-	end,
+    Text = "Enable Crosshair",
+    Default = false,
+    Callback = function(state)
+        crosshairEnabled = state
+        for _, line in ipairs(lines) do line.Visible = state end
+        dot.Visible = state
+        Library:Notify({Title = "Crosshair", Description = state and "Enabled" or "Disabled", Time = 2})
+    end
 })
 
 CrosshairRight:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
-	Default = lineColor,
-	Title = "Pick Crosshair Color",
-	Callback = function(value)
-		lineColor = value
-	end,
+    Default = lineColor,
+    Title = "Pick Crosshair Color",
+    Callback = function(value)
+        lineColor = value
+    end
 })
-
 
 --================================================================--
 -- SETTINGS TAB
