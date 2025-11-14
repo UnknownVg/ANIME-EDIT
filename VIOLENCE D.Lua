@@ -959,7 +959,8 @@ ESPRight:AddToggle("ExitGatesESP",     { Text = "Exit Gates ESP",    Default = f
 --================================================================--
 -- MISC TAB
 --================================================================--
-local MiscRight = MiscTab:AddRightGroupbox("MISC", "sun")
+local MiscRight   = MiscTab:AddRightGroupbox("MISC", "sun")
+local ServerLeft  = MiscTab:AddLeftGroupbox("SERVER", "server")
 
 MiscRight:AddSlider("FOVSlider", {
     Text = "Fov",
@@ -1000,9 +1001,173 @@ MiscRight:AddToggle("LowGraphics", {
     end
 })
 
-local CrosshairRight = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
 
-CrosshairRight:AddToggle("CrosshairToggle", {
+ServerLeft:AddLabel("60% Accurate Not 100%")
+ServerLeft:AddDivider()
+
+local selectedRegion = "US"
+
+ServerLeft:AddDropdown("RegionDropdown", {
+    Text = "Choose Server Region",
+    Values = {"US", "Japan", "Philippines/Asia", "China/HK"},
+    Default = 1,
+    Multi = false,
+    Searchable = false,
+    Callback = function(value)
+        selectedRegion = value
+        Library:Notify({Title = "Region", Description = "Selected: " .. value, Time = 2})
+    end
+})
+
+ServerLeft:AddButton({
+    Text = "Join Selected Region",
+    Func = function()
+        if not request then
+            Library:Notify({Title = "Error", Description = "HTTP not enabled!", Time = 3})
+            return
+        end
+
+        Library:Notify({Title = "Searching", Description = "Finding " .. selectedRegion .. " server...", Time = 3})
+
+        local regionPing = {
+            ["US"] = 150,
+            ["Japan"] = 120,
+            ["Philippines/Asia"] = 200,
+            ["China/HK"] = 180
+        }
+
+        local maxPing = regionPing[selectedRegion] or 200
+        local servers = {}
+
+        -- SINGLE REQUEST (NO LOOP = NO FREEZE)
+        local success, req = pcall(function()
+            return request({
+                Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100",
+                Method = "GET"
+            })
+        end)
+
+        if not success or not req then
+            Library:Notify({Title = "Failed", Description = "Request error!", Time = 3})
+            return
+        end
+
+        local body = game:GetService("HttpService"):JSONDecode(req.Body)
+
+        if body and body.data then
+            for _, v in pairs(body.data) do
+                if v.playing and v.maxPlayers and v.id ~= game.JobId then
+                    if v.playing < v.maxPlayers then
+                        local ping = v.ping or 999
+                        if ping <= maxPing then
+                            table.insert(servers, {id = v.id, ping = ping})
+                        end
+                    end
+                end
+            end
+        end
+
+        if #servers > 0 then
+            table.sort(servers, function(a, b) return a.ping < b.ping end)
+            local target = servers[1]
+            Library:Notify({Title = "Joining", Description = selectedRegion .. " (Ping: " .. target.ping .. "ms)", Time = 3})
+            task.delay(1, function()
+                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, target.id, LP)
+            end)
+        else
+            Library:Notify({Title = "No Server", Description = "None found in " .. selectedRegion, Time = 3})
+        end
+    end
+})
+
+ServerLeft:AddDivider()
+
+ServerLeft:AddButton({
+    Text = "Server Hop (Random)",
+    Func = function()
+        Library:Notify({Title = "Server Hop", Description = "Searching for new server...", Time = 3})
+        local servers = {}
+        local req = request({Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"})
+        local body = game:GetService("HttpService"):JSONDecode(req.Body)
+        if body and body.data then
+            for _, v in pairs(body.data) do
+                if v.playing < v.maxPlayers and v.id ~= game.JobId then
+                    table.insert(servers, 1, v.id)
+                end
+            end
+        end
+        if #servers > 0 then
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], LP)
+        else
+            Library:Notify({Title = "Server Hop", Description = "No servers found!", Time = 3})
+        end
+    end
+})
+
+ServerLeft:AddButton({
+    Text = "Rejoin",
+    Func = function()
+        Library:Notify({Title = "Rejoin", Description = "Rejoining current server...", Time = 2})
+        game:GetService("TeleportService"):Teleport(game.PlaceId, LP)
+    end
+})
+
+
+ServerLeft:AddLabel("Find Best Server For You")
+ServerLeft:AddDivider()
+
+ServerLeft:AddButton({
+    Text = "Join LowPing Server",
+    Func = function()
+        Library:Notify({Title = "Searching", Description = "Finding best server...", Time = 2})
+
+        task.spawn(function()
+            local success, req = pcall(function()
+                return request({
+                    Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100",
+                    Method = "GET"
+                })
+            end)
+
+            if not success or not req then
+                Library:Notify({Title = "Error", Description = "Failed to fetch servers", Time = 3})
+                return
+            end
+
+            local body = game:GetService("HttpService"):JSONDecode(req.Body)
+            local best = nil
+
+            if body and body.data then
+                for _, v in pairs(body.data) do
+                    if v.playing and v.maxPlayers and v.id ~= game.JobId then
+                        if v.playing < v.maxPlayers then
+                            local ping = v.ping or 999
+                            if not best or ping < (best.ping or 999) then
+                                best = v
+                            end
+                        end
+                    end
+                end
+            end
+
+            if best then
+                Library:Notify({Title = "Joining", Description = "Best ping: " .. best.ping .. "ms", Time = 3})
+                task.delay(0.5, function()
+                    game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, best.id, LP)
+                end)
+            else
+                Library:Notify({Title = "No Server", Description = "No available servers found", Time = 3})
+            end
+        end)
+    end
+})
+
+
+
+
+local CrosshairLeft = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
+
+CrosshairLeft:AddToggle("CrosshairToggle", {
     Text = "Enable Crosshair",
     Default = false,
     Callback = function(state)
@@ -1013,14 +1178,13 @@ CrosshairRight:AddToggle("CrosshairToggle", {
     end
 })
 
-CrosshairRight:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
+CrosshairLeft:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
     Default = lineColor,
     Title = "Pick Crosshair Color",
     Callback = function(value)
         lineColor = value
     end
 })
-
 --================================================================--
 -- SETTINGS TAB
 --================================================================--
