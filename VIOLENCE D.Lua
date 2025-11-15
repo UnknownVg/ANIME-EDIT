@@ -32,9 +32,11 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+local UIS = game:GetService("UserInputService")
+
 local LP = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
-
 --================================================================--
 -- BLOCK REMOTE SYSTEM
 --================================================================--
@@ -74,6 +76,9 @@ local espSettings = {
     Pumpkins   = {Enabled=false, Color=Color3.fromRGB(255,140,0), Transparency=0.5}
 }
 
+
+local savedPositions = {}
+local flipGui = nil
 --================================================================--
 -- ITEM Display Names
 --================================================================--
@@ -653,6 +658,393 @@ local function stopAutoSafe()
 end
 
 --================================================================--
+-- FULL BRIGHTNESS
+--================================================================--
+local FullBright = false
+
+local OriginalLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    FogStart = Lighting.FogStart
+}
+
+local function ApplyFullBright()
+    pcall(function()
+        Lighting.Brightness = 3
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = math.huge
+        Lighting.GlobalShadows = false
+        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+        Lighting.FogStart = math.huge
+        for _, effect in pairs(Lighting:GetChildren()) do
+            if effect:IsA("Atmosphere") or effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or 
+               effect:IsA("ColorCorrectionEffect") or effect:IsA("DepthOfFieldEffect") or 
+               effect:IsA("SunRaysEffect") then
+                pcall(function() effect:Destroy() end)
+            end
+        end
+    end)
+end
+
+local function RestoreLighting()
+    pcall(function()
+        Lighting.Brightness = OriginalLighting.Brightness
+        Lighting.ClockTime = OriginalLighting.ClockTime
+        Lighting.FogEnd = OriginalLighting.FogEnd
+        Lighting.GlobalShadows = OriginalLighting.GlobalShadows
+        Lighting.Ambient = OriginalLighting.Ambient
+        Lighting.OutdoorAmbient = OriginalLighting.OutdoorAmbient
+        Lighting.FogStart = OriginalLighting.FogStart
+    end)
+end
+
+-- Monitor lighting changes to reapply fullbright only when needed
+local lightingConnection
+local childConnection
+local function MonitorLighting()
+    if lightingConnection then lightingConnection:Disconnect() end
+    if childConnection then childConnection:Disconnect() end
+    if FullBright then
+        ApplyFullBright()
+        lightingConnection = Lighting.Changed:Connect(function(property)
+            if FullBright then
+                task.wait()
+                ApplyFullBright()
+            end
+        end)
+        childConnection = Lighting.ChildAdded:Connect(function(child)
+            if FullBright and (child:IsA("Atmosphere") or child:IsA("BloomEffect") or child:IsA("BlurEffect") or 
+               child:IsA("ColorCorrectionEffect") or child:IsA("DepthOfFieldEffect") or 
+               child:IsA("SunRaysEffect")) then
+                task.wait()
+                ApplyFullBright()
+            end
+        end)
+    else
+        RestoreLighting()
+        lightingConnection = nil
+        childConnection = nil
+    end
+end
+--================================================================--
+-- SERVICES & PLAYER
+--================================================================--
+
+
+local savedPositions = {}
+local flipGui = nil
+
+
+--================================================================--
+-- SAFE DRAG SYSTEM (NO VIBRATE, NO ACCIDENTAL CLICK)
+--================================================================--
+local function MakeSafeDrag(Button, onClick)
+    local dragging = false
+    local moved = false
+    local dragStart, startPos
+
+    Button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            moved = false
+            dragStart = input.Position
+            startPos = Button.Position
+        end
+    end)
+
+    Button.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement 
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            moved = true
+            local delta = input.Position - dragStart
+
+            Button.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    Button.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+
+            if moved == false then
+                onClick()
+            end
+        end
+    end)
+end
+
+
+--================================================================--
+-- FLIP SYSTEM
+--================================================================--
+local function PerformFrontflip()
+    local char = LP.Character or LP.CharacterAdded:Wait()
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local animator = hum and hum:FindFirstChildOfClass("Animator")
+
+    if not (hum and hrp) then return end
+
+    if char:FindFirstChild("Animate") then
+        char.Animate.Disabled = true
+    end
+
+    if animator then
+        for _, tr in ipairs(animator:GetPlayingAnimationTracks()) do tr:Stop() end
+    end
+
+    for _, s in ipairs({
+        Enum.HumanoidStateType.FallingDown,
+        Enum.HumanoidStateType.Freefall,
+        Enum.HumanoidStateType.Running,
+        Enum.HumanoidStateType.Seated,
+        Enum.HumanoidStateType.Climbing
+    }) do hum:SetStateEnabled(s, false) end
+
+    hum:ChangeState(Enum.HumanoidStateType.Physics)
+
+    local duration, steps = 0.45, 120
+    local cf = hrp.CFrame
+    local dir = cf.LookVector
+    local up = Vector3.yAxis
+
+    task.spawn(function()
+        local t0 = tick()
+        for i = 1, steps do
+            local t = i / steps
+            local y = 4 * (t - t*t) * 10
+            local pos = cf.Position + dir*(35*t) + up*y
+            local rot = CFrame.Angles(-math.rad(360*t), 0, 0)
+
+            hrp.CFrame = CFrame.new(pos) * cf.Rotation * rot
+
+            local waitTime = (duration/steps)*i - (tick() - t0)
+            if waitTime > 0 then task.wait(waitTime) end
+        end
+
+        hrp.CFrame = CFrame.new(cf.Position + dir*35) * cf.Rotation
+
+        for _, s in ipairs({
+            Enum.HumanoidStateType.FallingDown,
+            Enum.HumanoidStateType.Freefall,
+            Enum.HumanoidStateType.Running,
+            Enum.HumanoidStateType.Seated,
+            Enum.HumanoidStateType.Climbing
+        }) do hum:SetStateEnabled(s, true) end
+
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+        char.Animate.Disabled = false
+    end)
+end
+
+
+local function PerformBackflip()
+    local char = LP.Character or LP.CharacterAdded:Wait()
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local animator = hum and hum:FindFirstChildOfClass("Animator")
+
+    if not (hum and hrp) then return end
+
+    if char:FindFirstChild("Animate") then
+        char.Animate.Disabled = true
+    end
+
+    if animator then
+        for _, tr in ipairs(animator:GetPlayingAnimationTracks()) do tr:Stop() end
+    end
+
+    for _, s in ipairs({
+        Enum.HumanoidStateType.FallingDown,
+        Enum.HumanoidStateType.Freefall,
+        Enum.HumanoidStateType.Running,
+        Enum.HumanoidStateType.Seated,
+        Enum.HumanoidStateType.Climbing
+    }) do hum:SetStateEnabled(s, false) end
+
+    hum:ChangeState(Enum.HumanoidStateType.Physics)
+
+    local duration, steps = 0.45, 120
+    local cf = hrp.CFrame
+    local dir = -cf.LookVector
+    local up = Vector3.yAxis
+
+    task.spawn(function()
+        local t0 = tick()
+        for i = 1, steps do
+            local t = i / steps
+            local y = 4 * (t - t*t) * 10
+            local pos = cf.Position + dir*(35*t) + up*y
+            local rot = CFrame.Angles(math.rad(360*t), 0, 0)
+
+            hrp.CFrame = CFrame.new(pos) * cf.Rotation * rot
+
+            local waitTime = (duration/steps)*i - (tick() - t0)
+            if waitTime > 0 then task.wait(waitTime) end
+        end
+
+        hrp.CFrame = CFrame.new(cf.Position + dir*35) * cf.Rotation
+
+        for _, s in ipairs({
+            Enum.HumanoidStateType.FallingDown,
+            Enum.HumanoidStateType.Freefall,
+            Enum.HumanoidStateType.Running,
+            Enum.HumanoidStateType.Seated,
+            Enum.HumanoidStateType.Climbing
+        }) do hum:SetStateEnabled(s, true) end
+
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+        char.Animate.Disabled = false
+    end)
+end
+
+
+--================================================================--
+-- PC / MOBILE DETECTION
+--================================================================--
+local function isMobile()
+    return UIS.TouchEnabled and not UIS.KeyboardEnabled
+end
+
+local function isPC()
+    return UIS.KeyboardEnabled
+end
+
+
+--================================================================--
+-- PC KEYBINDS (Q = Frontflip, E = Backflip)
+--================================================================--
+local pcKeybindsEnabled = false
+
+local function enablePCMode()
+    if pcKeybindsEnabled then return end
+    pcKeybindsEnabled = true
+
+    Library:Notify({
+        Title = "Flip Controls",
+        Description = "Press Q = Frontflip\nPress E = Backflip",
+        Time = 4
+    })
+
+    UIS.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if not pcKeybindsEnabled then return end
+
+        if input.KeyCode == Enum.KeyCode.Q then
+            PerformFrontflip()
+        elseif input.KeyCode == Enum.KeyCode.E then
+            PerformBackflip()
+        end
+    end)
+end
+
+
+--================================================================--
+-- FLIP UI SYSTEM
+--================================================================--
+local function safeGetPlayerGui()
+    return LP:WaitForChild("PlayerGui")
+end
+
+
+local function _internalCreateFlipUI()
+    local guip = safeGetPlayerGui()
+    if guip:FindFirstChild("FlipGui") then
+        guip.FlipGui:Destroy()
+    end
+
+    local ui = Instance.new("ScreenGui")
+    ui.Name = "FlipGui"
+    ui.ResetOnSpawn = false
+    ui.Parent = guip
+    flipGui = ui
+
+    local function createButton(id, text, pos, onClick)
+        local btn = Instance.new("TextButton")
+        btn.Name = id
+        btn.Size = UDim2.new(0, 80, 0, 80)
+        btn.Position = savedPositions[id] or pos
+        btn.AnchorPoint = Vector2.new(0.5, 0.5)
+        btn.BackgroundColor3 = Color3.new(0, 0, 0)
+        btn.BackgroundTransparency = 0.5
+        btn.Text = text
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBlack
+        btn.TextSize = 12
+        btn.TextWrapped = true
+        btn.AutoButtonColor = false
+        btn.Parent = ui
+
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+        local border = Instance.new("UIStroke", btn)
+        border.Thickness = 2
+        border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        border.Color = Color3.fromRGB(128, 0, 255)
+
+        btn:GetPropertyChangedSignal("Position"):Connect(function()
+            savedPositions[id] = btn.Position
+        end)
+
+        MakeSafeDrag(btn, onClick)
+    end
+
+    createButton("F-Flip", "F-Flip", UDim2.new(0.5, -60, 0.5, 0), PerformFrontflip)
+    createButton("B-Flip", "B-Flip", UDim2.new(0.5, 60, 0.5, 0), PerformBackflip)
+end
+
+
+-- override UI creation with device check
+local function createFlipUI()
+    if isPC() then
+        enablePCMode()
+        return
+    end
+
+    _internalCreateFlipUI()
+end
+
+
+--================================================================--
+-- TOGGLE HANDLER
+--================================================================--
+if Toggles and Toggles.FlipUIToggle then
+    Toggles.FlipUIToggle:OnChanged(function(state)
+        if state then
+            createFlipUI()
+        else
+            pcKeybindsEnabled = false
+
+            local gui = LP:FindFirstChild("PlayerGui")
+            if gui and gui:FindFirstChild("FlipGui") then
+                gui.FlipGui:Destroy()
+            end
+        end
+    end)
+end
+
+
+--================================================================--
+-- RESPAWN RESTORE
+--================================================================--
+LP.CharacterAdded:Connect(function()
+    if Toggles and Toggles.FlipUIToggle and Toggles.FlipUIToggle.Value then
+        task.wait(0.5)
+        createFlipUI()
+    end
+end)
+--================================================================--
 -- GUI - LAYOUT ONLY (EXACTLY AS REQUESTED)
 --================================================================--
 local Window = Library:CreateWindow({
@@ -668,6 +1060,7 @@ local InfoTab       = Window:AddTab("Info", "info")
 local SurvivorTab   = Window:AddTab("Survivor", "user")
 local KillerTab     = Window:AddTab("Killer", "sword")
 local EspTab        = Window:AddTab("Visual", "eye")
+local TrollTab = Window:AddTab("Troll", "flame")
 local MiscTab       = Window:AddTab("Misc", "settings")
 local SettingsTab   = Window:AddTab("Settings", "cog")
 
@@ -964,7 +1357,41 @@ ESPRight:AddToggle("SurvivorsESP",     { Text = "Survivors ESP",     Default = f
 ESPRight:AddToggle("GeneratorsESP",    { Text = "Generators ESP",    Default = false, Callback = function(v) espSettings.Generators.Enabled = v end })
 ESPRight:AddToggle("PalletsESP",       { Text = "Pallets ESP",       Default = false, Callback = function(v) espSettings.Pallets.Enabled = v end })
 ESPRight:AddToggle("ExitGatesESP",     { Text = "Exit Gates ESP",    Default = false, Callback = function(v) espSettings.ExitGates.Enabled = v end })
+--================================================================--
+-- TROLL TAB
+--================================================================--
+local TrollLeft = TrollTab:AddLeftGroupbox("Troll Match", "flame")
 
+TrollLeft:AddToggle("FlipUIToggle", {
+    Text = "Show B-Flip & F-Flip Buttons",
+    Default = false,
+    Callback = function(enabled)
+        if enabled then
+            createFlipUI()
+            Library:Notify({Title = "Flip UI", Description = "Draggable F-Flip & B-Flip buttons shown!", Time = 3})
+        else
+            if flipGui then
+                flipGui:Destroy()
+                flipGui = nil
+                Library:Notify({Title = "Flip UI", Description = "Hidden!", Time = 2})
+            end
+        end
+    end
+})
+
+TrollLeft:AddButton({
+    Text = "Frontflip",
+    Func = function()
+        PerformFrontflip()
+    end
+})
+
+TrollLeft:AddButton({
+    Text = "Backflip",
+    Func = function()
+        PerformBackflip()
+    end
+})
 --================================================================--
 -- MISC TAB
 --================================================================--
@@ -982,24 +1409,11 @@ MiscLeft:AddSlider("FOVSlider", {
 })
 
 MiscLeft:AddButton({
-    Text = "Enable Day Mode",
+    Text = "Full Brightness",
     Func = function()
-        local Lighting = game:GetService("Lighting")
-        local function applyDaySettings()
-            Lighting.TimeOfDay = "14:00:00"
-            Lighting.ClockTime = 14
-            Lighting.Brightness = 3
-            Lighting.Ambient = Color3.fromRGB(200, 200, 200)
-            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-            Lighting.FogEnd = 100000
-            Lighting.FogStart = 0
-            Lighting.FogColor = Color3.fromRGB(255, 255, 255)
-        end
-        applyDaySettings()
-        for _, prop in ipairs({"TimeOfDay","ClockTime","Brightness","Ambient","OutdoorAmbient","FogEnd","FogStart","FogColor"}) do
-            Lighting:GetPropertyChangedSignal(prop):Connect(applyDaySettings)
-        end
-        task.spawn(function() while task.wait(5) do applyDaySettings() end end)
+        FullBright = not FullBright
+        MonitorLighting()
+        Library:Notify({Title = "Fullbright", Description = FullBright and "Enabled" or "Disabled", Time = 2})
     end
 })
 
