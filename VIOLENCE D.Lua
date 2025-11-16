@@ -241,6 +241,7 @@ end
 --================================================================--
 -- FOV
 --================================================================--
+--[[
 local function updateFOV()
     Camera = Workspace.CurrentCamera
     if Camera then Camera.FieldOfView = DESIRED_FOV end
@@ -252,7 +253,7 @@ Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 end)
 
 task.spawn(updateFOV)
-
+]]
 --================================================================--
 -- HITBOX SYSTEM (2 TOGGLES - FIX APPLIED HERE)
 --================================================================--
@@ -1116,23 +1117,60 @@ KillerRight:AddToggle("KillerThirdPerson", {
     Text = "Third Person (Killer Only)",
     Default = false,
     Callback = function(enabled)
-        if enabled and getRole(LP) ~= "Killer" then
+        local Player = game.Players.LocalPlayer
+        local UserInputService = game:GetService("UserInputService")
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+
+        if enabled and getRole(Player) ~= "Killer" then
             Library:Notify({Title = "Error", Description = "Killer only!", Time = 2})
             Toggles.KillerThirdPerson:Set(false)
             return
         end
+
         if enabled then
+            Player.CameraMode = Enum.CameraMode.Classic
+            Player.CameraMaxZoomDistance = 30
+            Player.CameraMinZoomDistance = 0.5
+
+            if UserInputService.KeyboardEnabled then
+                Player.DevEnableMouseLock = true
+
+                task.spawn(function()
+                    while Toggles.KillerThirdPerson.Value do
+                        if not Player.DevCameraOcclusionMode then
+                            task.wait()
+                            continue
+                        end
+
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+                        task.wait(0.1)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+
+                        if Camera and DESIRED_FOV then
+                            Camera.FieldOfView = DESIRED_FOV
+                        end
+
+                        task.wait(1)
+                    end
+                end)
+            else
+                Player.DevEnableMouseLock = false
+            end
+
             task.spawn(function()
                 while Toggles.KillerThirdPerson.Value do
-                    LP.CameraMode = Enum.CameraMode.Classic
-                    LP.CameraMaxZoomDistance = 30
-                    LP.CameraMinZoomDistance = 0.5
-                    if Camera then Camera.FieldOfView = DESIRED_FOV end
+                    if Camera and DESIRED_FOV then
+                        Camera.FieldOfView = DESIRED_FOV
+                    end
                     task.wait()
                 end
             end)
+
         else
-            LP.CameraMode = Enum.CameraMode.LockFirstPerson
+            Player.DevEnableMouseLock = false
+            Player.CameraMode = Enum.CameraMode.LockFirstPerson
+            Player.CameraMaxZoomDistance = 30
+            Player.CameraMinZoomDistance = 30
         end
     end
 })
@@ -1398,7 +1436,7 @@ TrollLeft:AddButton({
 local MiscLeft     = MiscTab:AddLeftGroupbox("MISC", "sun")
 local ServerRight  = MiscTab:AddRightGroupbox("SERVER", "server")
 local CrosshairLeft = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
-
+--[[
 MiscLeft:AddSlider("FOVSlider", {
     Text = "Fov",
     Default = 95,
@@ -1407,7 +1445,7 @@ MiscLeft:AddSlider("FOVSlider", {
     Suffix = " degrees",
     Callback = function(value) DESIRED_FOV = value end
 })
-
+]]
 MiscLeft:AddButton({
     Text = "Full Brightness",
     Func = function()
