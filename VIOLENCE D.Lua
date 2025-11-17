@@ -1045,6 +1045,207 @@ LP.CharacterAdded:Connect(function()
         createFlipUI()
     end
 end)
+
+
+--==============================================================
+-- EMOTE LIST
+--==============================================================
+
+local emotes = {
+    ["24 Hour Cinderella"] = {
+        anim = "rbxassetid://137195203725366",
+        song = "rbxassetid://121099446613414"
+    },
+
+    ["Backflip"] = {
+        anim = "rbxassetid://74705617908505"
+    },
+
+    ["Applause"] = {
+        anim = "rbxassetid://96328361165090",
+        song = "rbxassetid://115490787020749"
+    },
+
+    ["Arm Swing"] = {
+        anim = "rbxassetid://80552139463944",
+        song = "rbxassetid://74216458932348"
+    },
+
+    ["California Girls"] = {
+        anim = "rbxassetid://123552803041504",
+        song = "rbxassetid://87899327891544"
+    },
+
+    ["Floating Rest"] = {
+        anim = "rbxassetid://114593021219597"
+    },
+
+    ["Ghouls"] = {
+        anim = "rbxassetid://130415594909401",
+        song = "rbxassetid://123004139176580"
+    },
+
+    ["Griddy"] = {
+        anim = "rbxassetid://75586690784894"
+    },
+
+    ["Kyoufuu"] = {
+        anim = "rbxassetid://137322894494527",
+        song = "rbxassetid://129064643026442"
+    },
+
+    ["Rambunctious"] = {
+        anim = "rbxassetid://81054496834622"
+    },
+
+    ["Rampage"] = {
+        anim = "rbxassetid://79155929355612"
+    },
+
+    ["Schadenfreude"] = {
+        anim = "rbxassetid://138303785534052",
+        song = "rbxassetid://92070710839040"
+    },
+
+    ["Source"] = {
+        anim = "rbxassetid://117228494282496"
+    },
+
+    ["Static"] = {
+        anim = "rbxassetid://95096724457263",
+        song = "rbxassetid://70950516511572"
+    },
+
+    ["Dap"] = {
+        anim = "rbxassetid://93350677984372"
+    },
+
+    ["Thriller"] = {
+        anim = "rbxassetid://99835792883875",
+        song = "rbxassetid://139985043810748"
+    },
+
+    ["Wave"] = {
+        anim = "rbxassetid://99670106766588"
+    }
+}
+
+--==============================================================
+-- SERVICES & STATE
+--==============================================================
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local char        -- current character instance
+local hum         -- current humanoid
+local soundFolder -- folder inside character for sounds
+
+local currentAnimTrack
+local currentSound
+
+--================================================================--
+-- EMOTE SYSTEM 
+--================================================================--
+local function stopCurrentEmote()
+    -- safe stop
+    if currentAnimTrack and currentAnimTrack.IsPlaying then
+        pcall(function() currentAnimTrack:Stop() end)
+    end
+    currentAnimTrack = nil
+
+    if currentSound then
+        pcall(function() currentSound:Stop() end)
+        if currentSound.Parent then
+            pcall(function() currentSound:Destroy() end)
+        end
+        currentSound = nil
+    end
+end
+
+local function playEmote(name)
+    -- ensure humanoid and soundFolder exist
+    if not hum or not hum.Parent then
+        warn("Humanoid not ready; can't play emote.")
+        return
+    end
+
+    stopCurrentEmote()
+
+    local data = emotes[name]
+    if not data then
+        warn("Emote not found:", tostring(name))
+        return
+    end
+
+    -- Play animation (safe pcall in case animation fails)
+    local anim = Instance.new("Animation")
+    anim.AnimationId = data.anim or ""
+    local ok, track = pcall(function()
+        return hum:LoadAnimation(anim)
+    end)
+    if ok and track then
+        currentAnimTrack = track
+        pcall(function() currentAnimTrack:Play() end)
+    else
+        warn("Failed to load/play animation:", tostring(name))
+    end
+
+    -- Play song (loop enabled) if available
+    if data.song and soundFolder and soundFolder.Parent then
+        local sound = Instance.new("Sound")
+        sound.SoundId = data.song
+        sound.Volume = 1
+        sound.Looped = true
+        sound.Parent = soundFolder
+        local success, err = pcall(function() sound:Play() end)
+        if success then
+            currentSound = sound
+        else
+            warn("Failed to play sound for emote:", tostring(name), err)
+            sound:Destroy()
+        end
+    end
+end
+
+--==============================================================
+-- CHARACTER SETUP & RESPAWN HANDLING
+--==============================================================
+local function setupCharacter(newChar)
+    if not newChar then return end
+
+    -- clear previous references safely
+    stopCurrentEmote()
+
+    char = newChar
+    hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
+
+    -- create/recreate sound folder
+    if soundFolder and soundFolder.Parent then
+        pcall(function() soundFolder:Destroy() end)
+    end
+    soundFolder = Instance.new("Folder")
+    soundFolder.Name = "EmoteSounds"
+    soundFolder.Parent = char
+end
+
+-- Connect CharacterAdded AFTER functions are defined
+player.CharacterAdded:Connect(function(newChar)
+    -- small delay to ensure character fully initializes
+    -- (avoids race if CharacterAdded fires very early)
+    task.wait(0.05)
+    setupCharacter(newChar)
+end)
+
+-- initial setup (if character already exists)
+if player.Character then
+    setupCharacter(player.Character)
+else
+    player.CharacterAdded:Wait()
+    setupCharacter(player.Character)
+end
+
+
+
 --================================================================--
 -- GUI - LAYOUT ONLY (EXACTLY AS REQUESTED)
 --================================================================--
@@ -1062,6 +1263,7 @@ local SurvivorTab   = Window:AddTab("Survivor", "user")
 local KillerTab     = Window:AddTab("Killer", "sword")
 local EspTab        = Window:AddTab("Visual", "eye")
 local TrollTab = Window:AddTab("Troll", "flame")
+local TeleportTab = Window:AddTab("Teleport", "repeat")
 local MiscTab       = Window:AddTab("Misc", "settings")
 local SettingsTab   = Window:AddTab("Settings", "cog")
 
@@ -1306,30 +1508,32 @@ SurvivorRight:AddToggle("BlockHealingRemotes", {
 SurvivorRight:AddButton({
     Text = "Instant Escape",
     Func = function()
-        local playerName = LP.Name
-        local playerFolder = workspace:FindFirstChild(playerName)
+        local char = LP.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+        local playerFolder = workspace:FindFirstChild(LP.Name)
         if not playerFolder then
-            Library:Notify({Title = "Error", Description = "You're spectator!", Time = 3})
+            Library:Notify({Title="Error", Description="You are Spectator!", Time=3})
             return
         end
-        
+
         local skillGen = playerFolder:FindFirstChild("Skillcheck-gen")
         local skillPlayer = playerFolder:FindFirstChild("Skillcheck-player")
         if not skillGen or not skillPlayer then
-            Library:Notify({Title = "Error", Description = "You're spectator!", Time = 3})
+            Library:Notify({Title="Error", Description="You are Spectator!", Time=3})
             return
         end
-        
-        local finishline = Workspace.Map:FindFirstChild("Fininshline")
-        if not finishline then
-            Library:Notify({Title = "Error", Description = "Fininshline not found!", Time = 3})
-            return
-        end
-        
-        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = LP.Character.HumanoidRootPart
-            hrp.CFrame = finishline.CFrame + Vector3.new(0, 5, 0)
-            Library:Notify({Title = "SUCCESS", Description = "Instant Escape!", Time = 3})
+
+        local finishline = workspace.Map:FindFirstChild("Fininshline")
+        if not finishline then return end
+
+        local hrp = char.HumanoidRootPart
+
+        for _, obj in pairs(finishline:GetChildren()) do
+            if obj:IsA("TouchTransmitter") or obj:IsA("TouchInterest") then
+                firetouchinterest(hrp, finishline, 0)
+                firetouchinterest(hrp, finishline, 1)
+            end
         end
     end
 })
@@ -1428,6 +1632,162 @@ TrollLeft:AddButton({
     Text = "Backflip",
     Func = function()
         PerformBackflip()
+    end
+})
+
+--================================================================--
+-- EMOTE
+--================================================================--
+local TrollRight = TrollTab:AddRightGroupbox("EMOTE", "laugh")
+
+
+--==============================================================
+-- UI (Dropdown + Play + Stop)
+--==============================================================
+local selectedEmote = nil
+
+local emoteNames = {}
+for name in pairs(emotes) do
+    table.insert(emoteNames, name)
+end
+
+-- Dropdown
+TrollRight:AddDropdown("EmoteSelector", {
+    Text = "Select Emote",
+    Values = emoteNames,
+    Default = emoteNames[1],
+    Searchable = true,
+    Callback = function(v)
+        selectedEmote = v
+    end
+})
+
+-- Play Button
+TrollRight:AddButton({
+    Text = "Play Emote",
+    Func = function()
+        if selectedEmote then
+            playEmote(selectedEmote)
+        else
+            warn("No emote selected.")
+        end
+    end
+})
+
+-- Stop Button
+TrollRight:AddButton({
+    Text = "Stop Emote",
+    Func = function()
+        stopCurrentEmote()
+    end
+})
+
+--================================================================--
+-- GOD MODE (BETA)
+--================================================================--
+--[[
+local OpLeft = TrollTab:AddLeftGroupbox("OVERPOWERED", "clown")
+
+OpLeft:AddButton({
+    Text = "GodMod (BETA)",
+    Func = function()
+        local char = LP.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+        local finishline = workspace.Map:FindFirstChild("Fininshline")
+        if not finishline then return end
+
+        for _, obj in pairs(finishline:GetChildren()) do
+            if obj:IsA("TouchTransmitter") or obj:IsA("TouchInterest") then
+                firetouchinterest(char.HumanoidRootPart, finishline, 0)
+                firetouchinterest(char.HumanoidRootPart, finishline, 1)
+            end
+        end
+    end
+})
+]]
+
+
+--================================================================--
+-- TELEPORT 
+--================================================================--
+local TeleportLeft     = TeleportTab:AddLeftGroupbox("LOBBY & INGAME", "refresh-ccw")
+
+TeleportLeft:AddButton({
+    Text = "TP to Lobby",
+    Func = function()
+        local char = LP.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = workspace.SpawnLocation.CFrame + Vector3.new(0, 5, 0)
+            Library:Notify({Title = "Teleported", Description = "You are in the Lobby!", Time = 3})
+        end
+    end
+})
+
+TeleportLeft:AddButton({
+    Text = "TP to In-Game",
+    Func = function()
+        local char = LP.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local spawn = workspace.Map:FindFirstChild("SurvivorSpawn")
+            if spawn then
+                char.HumanoidRootPart.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+                Library:Notify({Title = "Teleported", Description = "You are In-Game!", Time = 3})
+            else
+                Library:Notify({Title = "Error", Description = "In-Game spawn not found!", Time = 3})
+            end
+        end
+    end
+})
+
+local TeleportRight   = TeleportTab:AddRightGroupbox("ROLE TELEPORT", "refresh-ccw")
+
+TeleportRight:AddButton({
+    Text = "TP to Killer",
+    Func = function()
+        local char = LP.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+        for _, player in pairs(game.Players:GetPlayers()) do
+            if getRole(player) == "Killer" and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+                Library:Notify({Title="Teleported", Description="To Killer", Time=3})
+                return
+            end
+        end
+
+        Library:Notify({Title="Error", Description="No killer found", Time=3})
+    end
+})
+
+local lastSurvivorIndex = 0
+
+TeleportRight:AddButton({
+    Text = "TP to Survivor",
+    Func = function()
+        local char = LP.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+        local survivors = {}
+        for _, player in pairs(game.Players:GetPlayers()) do
+            if getRole(player) == "Survivor" and player ~= LP and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(survivors, player)
+            end
+        end
+
+        if #survivors == 0 then
+            Library:Notify({Title="Error", Description="No other survivor found", Time=3})
+            return
+        end
+
+        lastSurvivorIndex = lastSurvivorIndex + 1
+        if lastSurvivorIndex > #survivors then
+            lastSurvivorIndex = 1
+        end
+
+        local target = survivors[lastSurvivorIndex]
+        char.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+        Library:Notify({Title="Teleported", Description="To Survivor", Time=3})
     end
 })
 --================================================================--
