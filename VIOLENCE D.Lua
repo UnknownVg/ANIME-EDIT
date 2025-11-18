@@ -1376,6 +1376,119 @@ RunService.Heartbeat:Connect(function()
 end)
 
 --================================================================--
+-- RAPID ATTACK
+--================================================================--
+local BasicAttack = ReplicatedStorage.Remotes.Attacks.BasicAttack
+local AfterAttack = ReplicatedStorage.Remotes.Attacks.AfterAttack
+
+local rapidAttack = false
+local attackDelay = 0.1
+local savedPositions = {}
+local rapidAttackGui
+
+local function startRapidAttack()
+    rapidAttack = true
+    task.spawn(function()
+        while rapidAttack do
+            BasicAttack:FireServer()
+            firesignal(AfterAttack.OnClientEvent, "Nothing")
+            task.wait(attackDelay)
+        end
+    end)
+end
+
+local function stopRapidAttack()
+    rapidAttack = false
+end
+
+local function safeGetPlayerGui()
+    return LP:WaitForChild("PlayerGui")
+end
+
+local function MakeSafeDrag(frame, onClick)
+    local dragging = false
+    local dragInput, mousePos, framePos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            mousePos = input.Position
+            framePos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    if onClick then onClick() end
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            frame.Position = framePos + UDim2.new(0, delta.X, 0, delta.Y)
+        end
+    end)
+end
+
+local function createRapidAttackUI()
+    local guip = safeGetPlayerGui()
+    if guip:FindFirstChild("RapidAttackGui") then
+        guip.RapidAttackGui:Destroy()
+    end
+
+    rapidAttackGui = Instance.new("ScreenGui")
+    rapidAttackGui.Name = "RapidAttackGui"
+    rapidAttackGui.ResetOnSpawn = false
+    rapidAttackGui.Parent = guip
+
+    local function createButton(id, text, pos)
+        local btn = Instance.new("TextButton")
+        btn.Name = id
+        btn.Size = UDim2.new(0, 80, 0, 80)
+        btn.Position = savedPositions[id] or pos
+        btn.AnchorPoint = Vector2.new(0.5, 0.5)
+        btn.BackgroundColor3 = Color3.new(0, 0, 0)
+        btn.BackgroundTransparency = 0.5
+        btn.Text = text
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBlack
+        btn.TextSize = 12
+        btn.TextWrapped = true
+        btn.AutoButtonColor = false
+        btn.Parent = rapidAttackGui
+
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+        local border = Instance.new("UIStroke", btn)
+        border.Thickness = 2
+        border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        border.Color = Color3.fromRGB(128, 0, 255)
+
+        btn:GetPropertyChangedSignal("Position"):Connect(function()
+            savedPositions[id] = btn.Position
+        end)
+
+        MakeSafeDrag(btn, function()
+            rapidAttack = not rapidAttack
+            if rapidAttack then
+                btn.Text = "Rapid ON"
+                startRapidAttack()
+            else
+                btn.Text = "Rapid OFF"
+                stopRapidAttack()
+            end
+        end)
+    end
+
+    createButton("RapidAttackBtn", "Rapid OFF", UDim2.new(0.5, 0, 0.8, 0))
+end
+--================================================================--
 -- GUI - LAYOUT ONLY (EXACTLY AS REQUESTED)
 --================================================================--
 local Window = Library:CreateWindow({
@@ -1422,6 +1535,7 @@ InfoRight:AddButton({
 --================================================================--
 local KillerLeft  = KillerTab:AddLeftGroupbox("HITBOX", "scan")
 local KillerRight = KillerTab:AddRightGroupbox("KILLER", "skull")
+local KillerLeft2 = KillerTab:AddLeftGroupbox("ATTACK", "sword")
 
 KillerLeft:AddToggle("SurvivorHitbox", {
     Text = "Hitbox (Survivor)",
@@ -1515,6 +1629,41 @@ KillerRight:AddToggle("BlockFlashlightRemote", {
         if gotBlinded then
             if enabled then blockRemote(gotBlinded) else unblockRemote(gotBlinded) end
         end
+    end
+})
+
+
+
+
+
+
+
+
+KillerLeft2:AddToggle("ShowRapidAttackButton", {
+    Text = "Show Rapid Attack Button",
+    Default = false,
+    Callback = function(enabled)
+        if enabled then
+            createRapidAttackUI()
+        else
+            if rapidAttackGui then
+                rapidAttackGui:Destroy()
+                rapidAttackGui = nil
+            end
+            rapidAttack = false
+        end
+    end
+})
+
+KillerLeft2:AddSlider("RapidAttackSpeed", {
+    Text = "Rapid Attack Speed",
+    Default = 0.1,
+    Min = 0.1,
+    Max = 1,
+    Rounding = 2, -- THIS makes decimals like 0.10, 0.25, 0.50, etc.
+    Suffix = " sec",
+    Callback = function(v)
+        attackDelay = v
     end
 })
 
