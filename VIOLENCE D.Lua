@@ -1657,7 +1657,7 @@ KillerLeft2:AddToggle("ShowRapidAttackButton", {
 
 KillerLeft2:AddSlider("RapidAttackSpeed", {
     Text = "Rapid Attack Speed",
-    Default = 0.1,
+    Default = 1,
     Min = 0.1,
     Max = 1,
     Rounding = 2, -- THIS makes decimals like 0.10, 0.25, 0.50, etc.
