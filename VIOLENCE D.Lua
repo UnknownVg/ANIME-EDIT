@@ -255,24 +255,29 @@ end)
 task.spawn(updateFOV)
 ]]
 --================================================================--
--- HITBOX SYSTEM (2 TOGGLES - FIX APPLIED HERE)
+-- HITBOX SYSTEM
 --================================================================--
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LP = Players.LocalPlayer
+
 local survivorHitboxes = {}
 local killerHitboxes = {}
+
 local survivorHitboxEnabled = false
 local killerHitboxEnabled = false
+
 local survivorHitboxSize = 13
 local killerHitboxSize = 13
 local hitboxTransparency = 0.9
 
+local lastRole = {}
+
 local function applySurvivorHitbox(player)
-    if not survivorHitboxEnabled or getRole(player) ~= "Survivor" or not player.Character then return end
+    if not survivorHitboxEnabled or getRole(player) ~= "Survivor" then return end
+    if not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    
-    -- *** FIX APPLIED: Removed the check 'or survivorHitboxes[player]' ***
-    -- This allows the Heartbeat loop to re-apply properties every frame.
-    if not hrp then return end 
-    
+    if not hrp then return end
     survivorHitboxes[player] = hrp
     hrp.Size = Vector3.new(survivorHitboxSize, survivorHitboxSize, survivorHitboxSize)
     hrp.Transparency = hitboxTransparency
@@ -294,13 +299,10 @@ local function removeSurvivorHitbox(player)
 end
 
 local function applyKillerHitbox(player)
-    if not killerHitboxEnabled or getRole(player) ~= "Killer" or not player.Character then return end
+    if not killerHitboxEnabled or getRole(player) ~= "Killer" then return end
+    if not player.Character then return end
     local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    
-    -- *** FIX APPLIED: Removed the check 'or killerHitboxes[player]' ***
-    -- This allows the Heartbeat loop to re-apply properties every frame.
-    if not hrp then return end 
-    
+    if not hrp then return end
     killerHitboxes[player] = hrp
     hrp.Size = Vector3.new(killerHitboxSize, killerHitboxSize, killerHitboxSize)
     hrp.Transparency = hitboxTransparency
@@ -325,48 +327,67 @@ for _, p in Players:GetPlayers() do
     if p ~= LP then
         p.CharacterAdded:Connect(function()
             task.wait(0.5)
-            if getRole(p) == "Survivor" and survivorHitboxEnabled then
+            local role = getRole(p)
+            lastRole[p] = role
+            if role == "Survivor" and survivorHitboxEnabled then
                 applySurvivorHitbox(p)
-            elseif getRole(p) == "Killer" and killerHitboxEnabled then
+            elseif role == "Killer" and killerHitboxEnabled then
                 applyKillerHitbox(p)
             end
         end)
-        if p.Character then
-            if getRole(p) == "Survivor" and survivorHitboxEnabled then
-                applySurvivorHitbox(p)
-            elseif getRole(p) == "Killer" and killerHitboxEnabled then
-                applyKillerHitbox(p)
-            end
-        end
     end
 end
+
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        local role = getRole(p)
+        lastRole[p] = role
+        if role == "Survivor" and survivorHitboxEnabled then
+            applySurvivorHitbox(p)
+        elseif role == "Killer" and killerHitboxEnabled then
+            applyKillerHitbox(p)
+        end
+    end)
+end)
 
 Players.PlayerRemoving:Connect(function(p)
     removeSurvivorHitbox(p)
     removeKillerHitbox(p)
+    lastRole[p] = nil
 end)
 
--- The Heartbeat loop now consistently calls applyHitbox, which always sets the properties.
 RunService.Heartbeat:Connect(function()
     for _, p in Players:GetPlayers() do
         if p ~= LP and p.Character then
             local role = getRole(p)
+
+            if lastRole[p] ~= role then
+                removeSurvivorHitbox(p)
+                removeKillerHitbox(p)
+            end
+
             if role == "Survivor" then
                 if survivorHitboxEnabled then applySurvivorHitbox(p) else removeSurvivorHitbox(p) end
             elseif role == "Killer" then
                 if killerHitboxEnabled then applyKillerHitbox(p) else removeKillerHitbox(p) end
+            else
+                removeSurvivorHitbox(p)
+                removeKillerHitbox(p)
             end
+
+            lastRole[p] = role
         end
     end
 end)
 
 local function updateHitboxSizes()
-    for player, hrp in pairs(survivorHitboxes) do
+    for _, hrp in pairs(survivorHitboxes) do
         if hrp and hrp.Parent then
             hrp.Size = Vector3.new(survivorHitboxSize, survivorHitboxSize, survivorHitboxSize)
         end
     end
-    for player, hrp in pairs(killerHitboxes) do
+    for _, hrp in pairs(killerHitboxes) do
         if hrp and hrp.Parent then
             hrp.Size = Vector3.new(killerHitboxSize, killerHitboxSize, killerHitboxSize)
         end
@@ -380,7 +401,6 @@ local function updateHitboxTransparency()
         end
     end
 end
-
 --================================================================--
 -- ESP LOOP
 --================================================================--
@@ -1247,6 +1267,115 @@ end
 
 
 --================================================================--
+-- GODMOD BETA SYSTEM 
+--================================================================--
+local LP = game:GetService("Players").LocalPlayer
+local hasTeleported = false
+
+local function hasSkillcheck()
+    local playerFolder = workspace:FindFirstChild(LP.Name)
+    if not playerFolder then return false end
+    local skillGen = playerFolder:FindFirstChild("Skillcheck-gen")
+    local skillPlayer = playerFolder:FindFirstChild("Skillcheck-player")
+    return skillGen and skillPlayer
+end
+
+local function fireSkillcheckTouch()
+    if not hasSkillcheck() then return false end
+    local char = LP.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
+    local finishline = workspace.Map:FindFirstChild("Fininshline")
+    if not finishline then return false end
+    local hrp = char.HumanoidRootPart
+    for _, obj in ipairs(finishline:GetChildren()) do
+        if obj:IsA("TouchTransmitter") or obj:IsA("TouchInterest") then
+            firetouchinterest(hrp, finishline, 0)
+            firetouchinterest(hrp, finishline, 1)
+        end
+    end
+    return true
+end
+
+local function teleportToSurvivorSpawn()
+    local char = LP.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local spawn = workspace.Map:FindFirstChild("SurvivorSpawn")
+    if not spawn then return end
+    char.HumanoidRootPart.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 17
+    end
+end
+
+
+--================================================================--
+-- BLOCK KILLER VIEW
+--================================================================--
+
+local followKiller = false
+
+local function getRole(p)
+    if p and p.Team and p.Team.Name then
+        local n = p.Team.Name:lower()
+        if n:find("killer") then return "Killer" end
+        if n:find("survivor") then return "Survivor" end
+    end
+    return "Survivor"
+end
+
+local function getKiller()
+    for _, plr in ipairs(game:GetService("Players"):GetPlayers()) do
+        if plr ~= LP and getRole(plr) == "Killer" then
+            return plr
+        end
+    end
+    return nil
+end
+
+local function fireSkillcheckTouchIfNeeded()
+    local playerFolder = workspace:FindFirstChild(LP.Name)
+    if not playerFolder then return false end
+
+    local skillGen = playerFolder:FindFirstChild("Skillcheck-gen")
+    local skillPlayer = playerFolder:FindFirstChild("Skillcheck-player")
+    if not skillGen or not skillPlayer then return false end
+
+    local finishline = workspace.Map:FindFirstChild("Fininshline")
+    if not finishline then return true end
+
+    local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return true end
+
+    for _, obj in ipairs(finishline:GetChildren()) do
+        if obj:IsA("TouchTransmitter") or obj:IsA("TouchInterest") then
+            firetouchinterest(hrp, finishline, 0)
+            firetouchinterest(hrp, finishline, 1)
+        end
+    end
+    return true
+end
+
+RunService.Heartbeat:Connect(function()
+    if not followKiller then return end
+
+    local killer = getKiller()
+    if not killer or not killer.Character then return end
+
+    local killerHRP = killer.Character:FindFirstChild("HumanoidRootPart")
+    local myChar = LP.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not killerHRP or not myHRP then return end
+
+    fireSkillcheckTouchIfNeeded()
+
+    local forwardOffset = 3
+    local upwardOffset = 1
+    local targetCFrame = killerHRP.CFrame + (killerHRP.CFrame.LookVector * forwardOffset) + Vector3.new(0, upwardOffset, 0)
+    myHRP.CFrame = targetCFrame
+end)
+
+--================================================================--
 -- GUI - LAYOUT ONLY (EXACTLY AS REQUESTED)
 --================================================================--
 local Window = Library:CreateWindow({
@@ -1602,7 +1731,7 @@ ESPRight:AddToggle("ExitGatesESP",     { Text = "Exit Gates ESP",    Default = f
 --================================================================--
 -- TROLL TAB
 --================================================================--
-local TrollLeft = TrollTab:AddLeftGroupbox("Troll Match", "flame")
+local TrollLeft = TrollTab:AddLeftGroupbox("Troll", "flame")
 
 TrollLeft:AddToggle("FlipUIToggle", {
     Text = "Show B-Flip & F-Flip Buttons",
@@ -1634,6 +1763,12 @@ TrollLeft:AddButton({
         PerformBackflip()
     end
 })
+
+
+
+
+
+
 
 --================================================================--
 -- EMOTE
@@ -1685,27 +1820,40 @@ TrollRight:AddButton({
 --================================================================--
 -- GOD MODE (BETA)
 --================================================================--
---[[
-local OpLeft = TrollTab:AddLeftGroupbox("OVERPOWERED", "clown")
+
+local OpLeft = TrollTab:AddLeftGroupbox("OVERPOWERED", "robot")
 
 OpLeft:AddButton({
-    Text = "GodMod (BETA)",
+    Text = "Godmode (Beta)",
     Func = function()
-        local char = LP.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-        local finishline = workspace.Map:FindFirstChild("Fininshline")
-        if not finishline then return end
-
-        for _, obj in pairs(finishline:GetChildren()) do
-            if obj:IsA("TouchTransmitter") or obj:IsA("TouchInterest") then
-                firetouchinterest(char.HumanoidRootPart, finishline, 0)
-                firetouchinterest(char.HumanoidRootPart, finishline, 1)
-            end
+        if hasTeleported then return end
+        local success = fireSkillcheckTouch()
+        if success then
+            hasTeleported = true
+            LP.CharacterAdded:Once(function()
+                task.wait(0.5)
+                teleportToSurvivorSpawn()
+            end)
+        elseif not hasSkillcheck() then
+            teleportToSurvivorSpawn()
+            hasTeleported = true
         end
     end
 })
-]]
+
+
+OpLeft:AddToggle("FollowKillerToggle", {
+    Text = "Block Killer View",
+    Default = false,
+    Callback = function(enabled)
+        followKiller = enabled
+    end
+})
+
+
+
+
+
 
 
 --================================================================--
