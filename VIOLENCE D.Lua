@@ -28,15 +28,20 @@ local Toggles = Library.Toggles
 --================================================================--
 -- CORE SERVICES
 --================================================================--
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local Players           = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+local Workspace         = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
-local UIS = game:GetService("UserInputService")
+local Lighting          = game:GetService("Lighting")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
 
-local LP = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Camera      = Workspace.CurrentCamera
+
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid  = Character:WaitForChild("Humanoid")
+local Head      = Character:WaitForChild("Head")
 --================================================================--
 -- BLOCK REMOTE SYSTEM
 --================================================================--
@@ -1676,58 +1681,136 @@ end
 
 
 -- third person view killer
-local function isKiller()
-    return getRole(Player) == "Killer"
+
+local CurrentCamera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local Head = Character:WaitForChild("Head")
+
+local zoomEnabled = false
+local shiftLockEnabled = false
+local BASE_FOV = 104
+local connections = {}
+local shiftLockConn
+
+local function applyZoom()
+	if zoomEnabled then
+		LocalPlayer.CameraMode = Enum.CameraMode.Classic
+		LocalPlayer.CameraMaxZoomDistance = 35
+		LocalPlayer.CameraMinZoomDistance = 0.5
+		Humanoid.CameraOffset = Vector3.new(0,0,0)
+		CurrentCamera.FieldOfView = BASE_FOV
+	else
+		LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+		LocalPlayer.CameraMaxZoomDistance = 0.5
+		LocalPlayer.CameraMinZoomDistance = 0.5
+		Humanoid.CameraOffset = Vector3.new(0,0,0)
+		CurrentCamera.FieldOfView = 70
+	end
+
+	local CollectionService = game:GetService("CollectionService")
+	for _, part in ipairs(Character:GetDescendants()) do
+		if part:IsA("BasePart") and not CollectionService:HasTag(part, "alwaysInvisible") then
+			part.LocalTransparencyModifier = (part.Name == "Head") and 1 or part.Transparency
+		end
+	end
 end
 
-local function enableThirdPerson()
-    Player.CameraMode = Enum.CameraMode.Classic
-    Player.CameraMaxZoomDistance = 30
-    Player.CameraMinZoomDistance = 0.5
+local function setupBloodlustFrenzy()
+	for _, c in pairs(connections) do c:Disconnect() end
+	connections = {}
 
-    if UserInputService.KeyboardEnabled then
-        Player.DevEnableMouseLock = true
+	if not zoomEnabled then return end
 
-        task.spawn(function()
-            while Toggles.KillerThirdPerson.Value do
-                if not Player.DevCameraOcclusionMode then
-                    task.wait()
-                    continue
-                end
+	table.insert(connections, script.Parent:GetAttributeChangedSignal("BloodLust"):Connect(function()
+		local stage = script.Parent:GetAttribute("BloodLust") or 0
+		TweenService:Create(CurrentCamera, TweenInfo.new(0.3), {FieldOfView = BASE_FOV + stage * 2}):Play()
+	end))
 
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
-                task.wait(0.1)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+	table.insert(connections, Character:GetAttributeChangedSignal("Frenzy"):Connect(function()
+		TweenService:Create(CurrentCamera, TweenInfo.new(1.5), {
+			FieldOfView = Character:GetAttribute("Frenzy") and 110 or BASE_FOV + (script.Parent:GetAttribute("BloodLust") or 0) * 2
+		}):Play()
+	end))
+end
 
-                if Camera and DESIRED_FOV then
-                    Camera.FieldOfView = DESIRED_FOV
-                end
+local function updateShiftLock()
+	if shiftLockConn then shiftLockConn:Disconnect() end
+	if not shiftLockEnabled or not Character:FindFirstChild("HumanoidRootPart") then return end
 
-                task.wait(1)
-            end
-        end)
-    else
-        Player.DevEnableMouseLock = false
-    end
+	shiftLockConn = RunService.RenderStepped:Connect(function()
+		local root = Character.HumanoidRootPart
+		local look = CurrentCamera.CFrame.LookVector
+		local flatLook = Vector3.new(look.X, 0, look.Z).Unit
+		if flatLook.Magnitude > 0 then
+			root.CFrame = CFrame.new(root.Position) * CFrame.fromAxisAngle(Vector3.new(0,1,0), math.atan2(-flatLook.X, -flatLook.Z))
+		end
+	end)
+end
 
-    task.spawn(function()
-        while Toggles.KillerThirdPerson.Value do
-            if Camera and DESIRED_FOV then
-                Camera.FieldOfView = DESIRED_FOV
-            end
-            task.wait()
+if Head:FindFirstChild("RedSurfaceLight") then
+	Head.RedSurfaceLight:Destroy()
+end
+
+CurrentCamera:GetPropertyChangedSignal("CameraSubject"):Connect(function()
+	if CurrentCamera.CameraSubject and CurrentCamera.CameraSubject:IsA("VehicleSeat") then
+		CurrentCamera.CameraSubject = Humanoid
+	end
+end)
+
+
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+	Character = newChar
+	Humanoid = newChar:WaitForChild("Humanoid")
+	Head = newChar:WaitForChild("Head")
+	if Head:FindFirstChild("RedSurfaceLight") then Head.RedSurfaceLight:Destroy() end
+	if zoomEnabled then applyZoom() setupBloodlustFrenzy() end
+	if shiftLockEnabled then updateShiftLock() end
+end)
+
+
+
+
+
+
+-- auto tp lobby Carry
+getgenv().TpOnCarry = false
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local function setup()
+    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local wasCarrying = false
+
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        if not getgenv().TpOnCarry then return end
+        if not Character or not Character.Parent or not Character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local carrying = Character:GetAttribute("IsCarrying") == true
+        if carrying and not wasCarrying then
+            Character.HumanoidRootPart.CFrame = workspace.SpawnLocation.CFrame + Vector3.new(0, 2, 0)
         end
+        wasCarrying = carrying
+    end)
+
+    LocalPlayer.CharacterAdded:Connect(function(newChar)
+        if connection then connection:Disconnect() end
+        Character = newChar
+        wasCarrying = false
+        setup()
     end)
 end
 
-local function disableThirdPerson()
-    Player.DevEnableMouseLock = false
-    Player.CameraMode = Enum.CameraMode.LockFirstPerson
-    Player.CameraMaxZoomDistance = 30
-    Player.CameraMinZoomDistance = 30
-end
-
-
+setup()
 
 
 
@@ -1767,6 +1850,7 @@ local TabBox      = KillerTab:AddLeftTabbox()
 local KillerLeft  = TabBox:AddTab("HITBOX")
 local KillerLeft2 = TabBox:AddTab("ATTACK")
 local KillerRight = KillerTab:AddRightGroupbox("KILLER", "skull")
+local KillerLeft3 = KillerTab:AddLeftGroupbox("AUTOMATION", "cpu")
 
 -- VISUAL TAB
 local ESPRight = EspTab:AddLeftGroupbox("ESP", "eye")
@@ -1832,24 +1916,25 @@ KillerLeft:AddSlider("SurvivorHitboxSize", {
     end
 })
 
-KillerRight:AddToggle("KillerThirdPerson", {
-    Text = "Third Person (Killer)",
-    Default = false,
-    Callback = function(enabled)
-        if enabled and not isKiller() then
-            Library:Notify({Title = "Error", Description = "Killer only!", Time = 2})
-            Toggles.KillerThirdPerson:Set(false)
-            return
-        end
 
-        if enabled then
-            enableThirdPerson()
-        else
-            disableThirdPerson()
-        end
-    end
+KillerRight:AddToggle("KillerZoomToggle", {
+	Text = "Third Person (Killer)",
+	Default = false,
+	Callback = function(v)
+		zoomEnabled = v
+		applyZoom()
+		if v then setupBloodlustFrenzy() end
+	end
 })
 
+KillerRight:AddToggle("KillerShiftLock", {
+	Text = "ShiftLock",
+	Default = false,
+	Callback = function(v)
+		shiftLockEnabled = v
+		updateShiftLock()
+	end
+})
 
 KillerRight:AddToggle("BlockFlashlightRemote", {
     Text = "Anti-Blind",
@@ -1858,6 +1943,16 @@ KillerRight:AddToggle("BlockFlashlightRemote", {
         if enabled then EnableAntiBlind() else DisableAntiBlind() end
     end
 })
+
+
+
+KillerLeft3:AddToggle("TpOnCarry", {
+    Text = "Auto Tp Lobby Carry",
+    Default = false,
+    Callback = function(v) getgenv().TpOnCarry = v end
+})
+
+
 
 KillerLeft2:AddToggle("ShowRapidAttackButton", {
     Text = "Show Rapid Attack Button",
@@ -2096,6 +2191,8 @@ TrollLeft:AddToggle("FollowKillerToggle", {
     Default = false,
     Callback = function(enabled) followKiller = enabled end
 })
+
+
 
 --================================================================--
 -- TELEPORT TAB
