@@ -1,5 +1,5 @@
 --================================================================--
---                    VGXMOD HUB - VIOLENCE DISTRICT 1.7
+--                    VGXMOD HUB
 --================================================================--
 
 print("------------------------------------------------------------------")
@@ -65,20 +65,19 @@ end
 --================================================================--
 local DESIRED_FOV = 95
 
--- ESP SETTINGS (PUMPKINS ADDED HERE)
+-- ESP SETTINGS (PUMPKINS REMOVED)
 local espSettings = {
     Survivors  = {Enabled=false, Color=Color3.fromRGB(255,255,255), Transparency=0.9},
     Killers    = {Enabled=false, Color=Color3.fromRGB(255,0,0), Transparency=0.5},
     Generators = {Enabled=false, Color=Color3.fromRGB(0,170,255), Transparency=0.6},
     Pallets    = {Enabled=false, Color=Color3.fromRGB(139,69,19), Transparency=0.6},
     ExitGates  = {Enabled=false, Color=Color3.fromRGB(0,255,0), Transparency=0.5},
-    Windows    = {Enabled=false, Color=Color3.fromRGB(0,255,255), Transparency=0.6},
-    Pumpkins   = {Enabled=false, Color=Color3.fromRGB(255,140,0), Transparency=0.5}
+    Windows    = {Enabled=false, Color=Color3.fromRGB(0,255,255), Transparency=0.6}
 }
-
 
 local savedPositions = {}
 local flipGui = nil
+
 --================================================================--
 -- ITEM Display Names
 --================================================================--
@@ -106,25 +105,22 @@ local function getSurvivorItem(player)
 end
 
 --================================================================--
--- TRACK OBJECTS 
+-- TRACK OBJECTS (PUMPKINS REMOVED)
 --================================================================--
 local trackedObjects = {}
 
 local function trackObject(obj)
     if not obj or not obj.Name then return end
     local n = obj.Name:lower()
-    local map = workspace:FindFirstChild("Map")
-    local pumpkinsFolder = map and map:FindFirstChild("Pumpkins")
-    
-    if pumpkinsFolder and obj.Parent == pumpkinsFolder and n:find("pumpkin") then
-        trackedObjects[obj] = "Pumpkins"
-        return
-    end
 
-    if n:find("generator") then trackedObjects[obj] = "Generators"
-    elseif n:find("pallet") then trackedObjects[obj] = "Pallets"
-    elseif n:find("gate") then trackedObjects[obj] = "ExitGates"
-    elseif n:find("window") then trackedObjects[obj] = "Windows"
+    if n:find("generator") then
+        trackedObjects[obj] = "Generators"
+    elseif n:find("pallet") then
+        trackedObjects[obj] = "Pallets"
+    elseif n:find("gate") then
+        trackedObjects[obj] = "ExitGates"
+    elseif n:find("window") then
+        trackedObjects[obj] = "Windows"
     end
 end
 
@@ -238,22 +234,8 @@ local function getProgressColor(percent)
     return Color3.fromRGB(255 * (1 - percent), 255 * percent, 0)
 end
 
---================================================================--
--- FOV
---================================================================--
---[[
-local function updateFOV()
-    Camera = Workspace.CurrentCamera
-    if Camera then Camera.FieldOfView = DESIRED_FOV end
-end
 
-Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
-    task.wait(0.1)
-    updateFOV()
-end)
 
-task.spawn(updateFOV)
-]]
 --================================================================--
 -- HITBOX SYSTEM
 --================================================================--
@@ -1387,109 +1369,371 @@ local savedPositions = {}
 local rapidAttackGui
 
 local function startRapidAttack()
-    rapidAttack = true
-    task.spawn(function()
-        while rapidAttack do
-            BasicAttack:FireServer()
-            firesignal(AfterAttack.OnClientEvent, "Nothing")
-            task.wait(attackDelay)
-        end
-    end)
+rapidAttack = true
+task.spawn(function()
+while rapidAttack do
+BasicAttack:FireServer()
+firesignal(AfterAttack.OnClientEvent, "Nothing")
+task.wait(attackDelay)
+end
+end)
 end
 
 local function stopRapidAttack()
-    rapidAttack = false
+rapidAttack = false
 end
 
 local function safeGetPlayerGui()
-    return LP:WaitForChild("PlayerGui")
+return LP:WaitForChild("PlayerGui")
 end
 
 local function MakeSafeDrag(frame, onClick)
-    local dragging = false
-    local dragInput, mousePos, framePos
+local dragging = false
+local dragInput, mousePos, framePos
 
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            mousePos = input.Position
-            framePos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    if onClick then onClick() end
-                end
-            end)
-        end
-    end)
+frame.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+dragging = true
+mousePos = input.Position
+framePos = frame.Position
+input.Changed:Connect(function()
+if input.UserInputState == Enum.UserInputState.End then
+dragging = false
+if onClick then onClick() end
+end
+end)
+end
+end)
 
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
+frame.InputChanged:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+dragInput = input
+end
+end)
 
-    game:GetService("UserInputService").InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - mousePos
-            frame.Position = framePos + UDim2.new(0, delta.X, 0, delta.Y)
-        end
-    end)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+if input == dragInput and dragging then
+local delta = input.Position - mousePos
+frame.Position = framePos + UDim2.new(0, delta.X, 0, delta.Y)
+end
+end)
+
 end
 
 local function createRapidAttackUI()
-    local guip = safeGetPlayerGui()
-    if guip:FindFirstChild("RapidAttackGui") then
-        guip.RapidAttackGui:Destroy()
+local guip = safeGetPlayerGui()
+if guip:FindFirstChild("RapidAttackGui") then
+guip.RapidAttackGui:Destroy()
+end
+
+rapidAttackGui = Instance.new("ScreenGui")
+rapidAttackGui.Name = "RapidAttackGui"
+rapidAttackGui.ResetOnSpawn = false
+rapidAttackGui.Parent = guip
+
+local function createButton(id, text, pos)
+local btn = Instance.new("TextButton")
+btn.Name = id
+btn.Size = UDim2.new(0, 80, 0, 80)
+btn.Position = savedPositions[id] or pos
+btn.AnchorPoint = Vector2.new(0.5, 0.5)
+btn.BackgroundColor3 = Color3.new(0, 0, 0)
+btn.BackgroundTransparency = 0.5
+btn.Text = text
+btn.TextColor3 = Color3.new(1, 1, 1)
+btn.Font = Enum.Font.GothamBlack
+btn.TextSize = 12
+btn.TextWrapped = true
+btn.AutoButtonColor = false
+btn.Parent = rapidAttackGui
+
+Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)    
+local border = Instance.new("UIStroke", btn)    
+border.Thickness = 2    
+border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border    
+border.Color = Color3.fromRGB(128, 0, 255)    
+
+btn:GetPropertyChangedSignal("Position"):Connect(function()    
+    savedPositions[id] = btn.Position    
+end)    
+
+MakeSafeDrag(btn, function()    
+    rapidAttack = not rapidAttack    
+    if rapidAttack then    
+        btn.Text = "Rapid ON"    
+        startRapidAttack()    
+    else    
+        btn.Text = "Rapid OFF"    
+        stopRapidAttack()    
+    end    
+end)
+
+end
+
+createButton("RapidAttackBtn", "Rapid OFF", UDim2.new(0.5, 0, 0.8, 0))
+
+end
+--====================================================
+-- SPEED KILLER SYSTEM 
+--====================================================
+
+-- anti blind
+local function GetGotBlindedRemote()
+    if not remotes then return nil end
+    local itemsRemote = remotes:FindFirstChild("Items")
+    if not itemsRemote then return nil end
+    local flashlightRemote = itemsRemote:FindFirstChild("Flashlight")
+    if not flashlightRemote then return nil end
+    return flashlightRemote:FindFirstChild("GotBlinded")
+end
+
+local function EnableAntiBlind()
+    local gotBlinded = GetGotBlindedRemote()
+    if gotBlinded then
+        blockRemote(gotBlinded)
+    end
+end
+
+local function DisableAntiBlind()
+    local gotBlinded = GetGotBlindedRemote()
+    if gotBlinded then
+        unblockRemote(gotBlinded)
+    end
+end
+
+
+
+-- perfect skill check gen
+local function PerfectGeneratorSkillCheck(generator, point)
+    task.spawn(function()
+        task.wait(0.05)
+        ReplicatedStorage.Remotes.Generator.SkillCheckResultEvent:FireServer("success", 1, generator, point)
+        Library:Notify({Title = "PERFECT!", Description = "Generator Skill Check", Time = 1})
+    end)
+end
+
+local function PerfectHealingSkillCheck(target, point)
+    task.spawn(function()
+        task.wait(0.05)
+        ReplicatedStorage.Remotes.Healing.SkillCheckResultEvent:FireServer("success", 1, target, point)
+        Library:Notify({Title = "PERFECT!", Description = "Healing Skill Check", Time = 1})
+    end)
+end
+
+local function EnablePerfectSkillCheck()
+    local genSkill = ReplicatedStorage.Remotes.Generator.SkillCheckEvent
+    local healSkill = ReplicatedStorage.Remotes.Healing.SkillCheckEvent
+
+    genSkill.OnClientEvent:Connect(PerfectGeneratorSkillCheck)
+    healSkill.OnClientEvent:Connect(PerfectHealingSkillCheck)
+
+    Library:Notify({Title = "Perfect Skill Check", Description = "ON", Time = 3})
+end
+
+
+
+--perfect skill check healing 
+local function GetHealingRemotes()
+    if not remotes then return nil, nil end
+    local heal = remotes:FindFirstChild("Healing")
+    if not heal then return nil, nil end
+    return heal:FindFirstChild("SkillCheckFailEvent"), heal:FindFirstChild("SkillCheckResultEvent")
+end
+
+local function EnableBlockHealingRemotes()
+    local fail, result = GetHealingRemotes()
+    if fail and result then
+        blockRemote(fail)
+        blockRemote(result)
+    end
+end
+
+local function DisableBlockHealingRemotes()
+    local fail, result = GetHealingRemotes()
+    if fail and result then
+        unblockRemote(fail)
+        unblockRemote(result)
+    end
+end
+
+
+-- instant escape 
+local function IsSpectator()
+    local playerFolder = workspace:FindFirstChild(LP.Name)
+    if not playerFolder then return true end
+    local skillGen = playerFolder:FindFirstChild("Skillcheck-gen")
+    local skillPlayer = playerFolder:FindFirstChild("Skillcheck-player")
+    if not skillGen or not skillPlayer then return true end
+    return false
+end
+
+local function GetHumanoidRootPart()
+    local char = LP.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        return char.HumanoidRootPart
+    end
+end
+
+local function GetFinishLine()
+    return workspace.Map:FindFirstChild("Fininshline")
+end
+
+local function TouchFinishLine(hrp, finishline)
+    for _, obj in pairs(finishline:GetChildren()) do
+        if obj:IsA("TouchTransmitter") or obj:IsA("TouchInterest") then
+            firetouchinterest(hrp, finishline, 0)
+            firetouchinterest(hrp, finishline, 1)
+        end
+    end
+end
+
+local function InstantEscape()
+    local hrp = GetHumanoidRootPart()
+    if not hrp then return end
+    if IsSpectator() then
+        Library:Notify({Title="Error", Description="You are Spectator!", Time=3})
+        return
+    end
+    local finishline = GetFinishLine()
+    if not finishline then return end
+    TouchFinishLine(hrp, finishline)
+end
+
+--tp lobby
+local function TeleportToLobby()
+    local char = LP.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = workspace.SpawnLocation.CFrame + Vector3.new(0, 5, 0)
+        Library:Notify({Title = "Teleported", Description = "You are in the Lobby!", Time = 3})
+    end
+end
+
+
+-- tp in-game
+
+local function TeleportToInGame()
+    local char = LP.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local spawn = workspace.Map:FindFirstChild("SurvivorSpawn")
+        if spawn then
+            char.HumanoidRootPart.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+            Library:Notify({Title = "Teleported", Description = "You are In-Game!", Time = 3})
+        else
+            Library:Notify({Title = "Error", Description = "In-Game spawn not found!", Time = 3})
+        end
+    end
+end
+
+
+-- tp killer
+local function TeleportToKiller()
+    local char = LP.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if getRole(player) == "Killer" and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+            Library:Notify({Title="Teleported", Description="To Killer", Time=3})
+            return
+        end
     end
 
-    rapidAttackGui = Instance.new("ScreenGui")
-    rapidAttackGui.Name = "RapidAttackGui"
-    rapidAttackGui.ResetOnSpawn = false
-    rapidAttackGui.Parent = guip
+    Library:Notify({Title="Error", Description="No killer found", Time=3})
+end
 
-    local function createButton(id, text, pos)
-        local btn = Instance.new("TextButton")
-        btn.Name = id
-        btn.Size = UDim2.new(0, 80, 0, 80)
-        btn.Position = savedPositions[id] or pos
-        btn.AnchorPoint = Vector2.new(0.5, 0.5)
-        btn.BackgroundColor3 = Color3.new(0, 0, 0)
-        btn.BackgroundTransparency = 0.5
-        btn.Text = text
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Font = Enum.Font.GothamBlack
-        btn.TextSize = 12
-        btn.TextWrapped = true
-        btn.AutoButtonColor = false
-        btn.Parent = rapidAttackGui
 
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-        local border = Instance.new("UIStroke", btn)
-        border.Thickness = 2
-        border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        border.Color = Color3.fromRGB(128, 0, 255)
+--tp survivor 
+local lastSurvivorIndex = 0
 
-        btn:GetPropertyChangedSignal("Position"):Connect(function()
-            savedPositions[id] = btn.Position
-        end)
+local function TeleportToSurvivor()
+    local char = LP.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-        MakeSafeDrag(btn, function()
-            rapidAttack = not rapidAttack
-            if rapidAttack then
-                btn.Text = "Rapid ON"
-                startRapidAttack()
-            else
-                btn.Text = "Rapid OFF"
-                stopRapidAttack()
+    local survivors = {}
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if getRole(player) == "Survivor" and player ~= LP and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            table.insert(survivors, player)
+        end
+    end
+
+    if #survivors == 0 then
+        Library:Notify({Title="Error", Description="No other survivor found", Time=3})
+        return
+    end
+
+    lastSurvivorIndex = lastSurvivorIndex + 1
+    if lastSurvivorIndex > #survivors then
+        lastSurvivorIndex = 1
+    end
+
+    local target = survivors[lastSurvivorIndex]
+    char.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+    Library:Notify({Title="Teleported", Description="To Survivor", Time=3})
+end
+
+
+
+
+
+-- third person view killer
+local function isKiller()
+    return getRole(Player) == "Killer"
+end
+
+local function enableThirdPerson()
+    Player.CameraMode = Enum.CameraMode.Classic
+    Player.CameraMaxZoomDistance = 30
+    Player.CameraMinZoomDistance = 0.5
+
+    if UserInputService.KeyboardEnabled then
+        Player.DevEnableMouseLock = true
+
+        task.spawn(function()
+            while Toggles.KillerThirdPerson.Value do
+                if not Player.DevCameraOcclusionMode then
+                    task.wait()
+                    continue
+                end
+
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+                task.wait(0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+
+                if Camera and DESIRED_FOV then
+                    Camera.FieldOfView = DESIRED_FOV
+                end
+
+                task.wait(1)
             end
         end)
+    else
+        Player.DevEnableMouseLock = false
     end
 
-    createButton("RapidAttackBtn", "Rapid OFF", UDim2.new(0.5, 0, 0.8, 0))
+    task.spawn(function()
+        while Toggles.KillerThirdPerson.Value do
+            if Camera and DESIRED_FOV then
+                Camera.FieldOfView = DESIRED_FOV
+            end
+            task.wait()
+        end
+    end)
 end
+
+local function disableThirdPerson()
+    Player.DevEnableMouseLock = false
+    Player.CameraMode = Enum.CameraMode.LockFirstPerson
+    Player.CameraMaxZoomDistance = 30
+    Player.CameraMinZoomDistance = 30
+end
+
+
+
+
+
+
 --================================================================--
--- GUI - LAYOUT ONLY (EXACTLY AS REQUESTED)
+-- GUI - LAYOUT
 --================================================================--
 local Window = Library:CreateWindow({
     Title = "Vgxmod Hub",
@@ -1504,14 +1748,48 @@ local InfoTab       = Window:AddTab("Info", "info")
 local SurvivorTab   = Window:AddTab("Survivor", "user")
 local KillerTab     = Window:AddTab("Killer", "sword")
 local EspTab        = Window:AddTab("Visual", "eye")
-local TrollTab = Window:AddTab("Troll", "flame")
-local TeleportTab = Window:AddTab("Teleport", "repeat")
+local TrollTab      = Window:AddTab("Troll", "flame")
+local TeleportTab   = Window:AddTab("Teleport", "repeat")
 local MiscTab       = Window:AddTab("Misc", "settings")
 local SettingsTab   = Window:AddTab("Settings", "cog")
 
 --================================================================--
--- INFO TAB
+-- GROUP BOXES
 --================================================================--
+
+-- SURVIVOR TAB
+local SurvivorLeft    = SurvivorTab:AddLeftGroupbox("HITBOX", "scan")
+local AutomationLeft  = SurvivorTab:AddLeftGroupbox("AUTOMATION", "cpu")
+local SurvivorRight   = SurvivorTab:AddRightGroupbox("SURVIVOR", "user")
+
+-- KILLER TAB
+local TabBox      = KillerTab:AddLeftTabbox()
+local KillerLeft  = TabBox:AddTab("HITBOX")
+local KillerLeft2 = TabBox:AddTab("ATTACK")
+local KillerRight = KillerTab:AddRightGroupbox("KILLER", "skull")
+
+-- VISUAL TAB
+local ESPRight = EspTab:AddLeftGroupbox("ESP", "eye")
+
+-- TROLL TAB
+local TrollLeft  = TrollTab:AddLeftGroupbox("Troll", "flame")
+local TrollRight = TrollTab:AddRightGroupbox("EMOTE", "laugh")
+
+-- OVERPOWERED TAB
+--[[
+local OpLeft = TrollTab:AddLeftGroupbox("OVERPOWERED", "robot")
+]]
+
+-- TELEPORT TAB
+local TeleportLeft  = TeleportTab:AddLeftGroupbox("LOBBY & INGAME", "refresh-ccw")
+local TeleportRight = TeleportTab:AddRightGroupbox("ROLE TELEPORT", "refresh-ccw")
+
+-- MISC TAB
+local MiscLeft      = MiscTab:AddLeftGroupbox("MISC", "sun")
+local ServerRight   = MiscTab:AddRightGroupbox("SERVER", "server")
+local CrosshairLeft = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
+
+-- INFO TAB
 local InfoLeft  = InfoTab:AddLeftGroupbox("Credits")
 local InfoRight = InfoTab:AddRightGroupbox("Discord")
 
@@ -1531,12 +1809,8 @@ InfoRight:AddButton({
 })
 
 --================================================================--
--- KILLER TAB
+-- KILLER TAB ELEMENTS
 --================================================================--
-local KillerLeft  = KillerTab:AddLeftGroupbox("HITBOX", "scan")
-local KillerRight = KillerTab:AddRightGroupbox("KILLER", "skull")
-local KillerLeft2 = KillerTab:AddLeftGroupbox("ATTACK", "sword")
-
 KillerLeft:AddToggle("SurvivorHitbox", {
     Text = "Hitbox (Survivor)",
     Default = false,
@@ -1559,85 +1833,31 @@ KillerLeft:AddSlider("SurvivorHitboxSize", {
 })
 
 KillerRight:AddToggle("KillerThirdPerson", {
-    Text = "Third Person (Killer Only)",
+    Text = "Third Person (Killer)",
     Default = false,
     Callback = function(enabled)
-        local Player = game.Players.LocalPlayer
-        local UserInputService = game:GetService("UserInputService")
-        local VirtualInputManager = game:GetService("VirtualInputManager")
-
-        if enabled and getRole(Player) ~= "Killer" then
+        if enabled and not isKiller() then
             Library:Notify({Title = "Error", Description = "Killer only!", Time = 2})
             Toggles.KillerThirdPerson:Set(false)
             return
         end
 
         if enabled then
-            Player.CameraMode = Enum.CameraMode.Classic
-            Player.CameraMaxZoomDistance = 30
-            Player.CameraMinZoomDistance = 0.5
-
-            if UserInputService.KeyboardEnabled then
-                Player.DevEnableMouseLock = true
-
-                task.spawn(function()
-                    while Toggles.KillerThirdPerson.Value do
-                        if not Player.DevCameraOcclusionMode then
-                            task.wait()
-                            continue
-                        end
-
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
-                        task.wait(0.1)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
-
-                        if Camera and DESIRED_FOV then
-                            Camera.FieldOfView = DESIRED_FOV
-                        end
-
-                        task.wait(1)
-                    end
-                end)
-            else
-                Player.DevEnableMouseLock = false
-            end
-
-            task.spawn(function()
-                while Toggles.KillerThirdPerson.Value do
-                    if Camera and DESIRED_FOV then
-                        Camera.FieldOfView = DESIRED_FOV
-                    end
-                    task.wait()
-                end
-            end)
-
+            enableThirdPerson()
         else
-            Player.DevEnableMouseLock = false
-            Player.CameraMode = Enum.CameraMode.LockFirstPerson
-            Player.CameraMaxZoomDistance = 30
-            Player.CameraMinZoomDistance = 30
+            disableThirdPerson()
         end
     end
 })
+
 
 KillerRight:AddToggle("BlockFlashlightRemote", {
     Text = "Anti-Blind",
     Default = false,
     Callback = function(enabled)
-        local itemsRemote = remotes and remotes:FindFirstChild("Items")
-        local gotBlinded = itemsRemote and itemsRemote:FindFirstChild("Flashlight") and itemsRemote.Flashlight:FindFirstChild("GotBlinded")
-        if gotBlinded then
-            if enabled then blockRemote(gotBlinded) else unblockRemote(gotBlinded) end
-        end
+        if enabled then EnableAntiBlind() else DisableAntiBlind() end
     end
 })
-
-
-
-
-
-
-
 
 KillerLeft2:AddToggle("ShowRapidAttackButton", {
     Text = "Show Rapid Attack Button",
@@ -1660,7 +1880,7 @@ KillerLeft2:AddSlider("RapidAttackSpeed", {
     Default = 1,
     Min = 0.1,
     Max = 1,
-    Rounding = 2, -- THIS makes decimals like 0.10, 0.25, 0.50, etc.
+    Rounding = 2,
     Suffix = " sec",
     Callback = function(v)
         attackDelay = v
@@ -1668,12 +1888,8 @@ KillerLeft2:AddSlider("RapidAttackSpeed", {
 })
 
 --================================================================--
--- SURVIVOR TAB
+-- SURVIVOR TAB ELEMENTS
 --================================================================--
-local SurvivorLeft    = SurvivorTab:AddLeftGroupbox("HITBOX", "scan")
-local AutomationLeft  = SurvivorTab:AddLeftGroupbox("AUTOMATION", "cpu")
-local SurvivorRight   = SurvivorTab:AddRightGroupbox("SURVIVOR", "user")
-
 SurvivorLeft:AddToggle("KillerHitbox", {
     Text = "Hitbox (Killer)",
     Default = false,
@@ -1707,8 +1923,6 @@ SurvivorLeft:AddSlider("HitboxTransparency", {
     end
 })
 
-
--- AUTOMATION (LEFT - BOTTOM)
 AutomationLeft:AddToggle("AutoSafeKiller", {
     Text = "Auto Safe (Survivor)",
     Default = false,
@@ -1738,35 +1952,12 @@ AutomationLeft:AddSlider("AutoSafeDistance", {
     end
 })
 
--- SURVIVOR FEATURES (RIGHT)
+-- Survivor Right
 SurvivorRight:AddToggle("PerfectSkillCheck", {
     Text = "Perfect SkillCheck Gen",
     Default = false,
     Callback = function(enabled)
-        if enabled then
-            local genSkill = ReplicatedStorage.Remotes.Generator.SkillCheckEvent
-            local genResult = ReplicatedStorage.Remotes.Generator.SkillCheckResultEvent
-            local healSkill = ReplicatedStorage.Remotes.Healing.SkillCheckEvent
-            local healResult = ReplicatedStorage.Remotes.Healing.SkillCheckResultEvent
-
-            genSkill.OnClientEvent:Connect(function(generator, point)
-                task.spawn(function()
-                    task.wait(0.05)
-                    genResult:FireServer("success", 1, generator, point)
-                    Library:Notify({Title = "PERFECT!", Description = "Generator Skill Check", Time = 1})
-                end)
-            end)
-
-            healSkill.OnClientEvent:Connect(function(target, point)
-                task.spawn(function()
-                    task.wait(0.05)
-                    healResult:FireServer("success", 1, target, point)
-                    Library:Notify({Title = "PERFECT!", Description = "Healing Skill Check", Time = 1})
-                end)
-            end)
-
-            Library:Notify({Title = "Perfect Skill Check", Description = "ON", Time = 3})
-        end
+        if enabled then EnablePerfectSkillCheck() end
     end
 })
 
@@ -1774,54 +1965,21 @@ SurvivorRight:AddToggle("BlockHealingRemotes", {
     Text = "Perfect SkillCheck Healing",
     Default = false,
     Callback = function(enabled)
-        local heal = remotes and remotes:FindFirstChild("Healing")
-        local fail = heal and heal:FindFirstChild("SkillCheckFailEvent")
-        local result = heal and heal:FindFirstChild("SkillCheckResultEvent")
-        if fail and result then
-            if enabled then blockRemote(fail); blockRemote(result) else unblockRemote(fail); unblockRemote(result) end
-        end
+        if enabled then EnableBlockHealingRemotes() else DisableBlockHealingRemotes() end
     end
 })
 
-SurvivorRight:AddButton({
-    Text = "Instant Escape",
-    Func = function()
-        local char = LP.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-        local playerFolder = workspace:FindFirstChild(LP.Name)
-        if not playerFolder then
-            Library:Notify({Title="Error", Description="You are Spectator!", Time=3})
-            return
-        end
-
-        local skillGen = playerFolder:FindFirstChild("Skillcheck-gen")
-        local skillPlayer = playerFolder:FindFirstChild("Skillcheck-player")
-        if not skillGen or not skillPlayer then
-            Library:Notify({Title="Error", Description="You are Spectator!", Time=3})
-            return
-        end
-
-        local finishline = workspace.Map:FindFirstChild("Fininshline")
-        if not finishline then return end
-
-        local hrp = char.HumanoidRootPart
-
-        for _, obj in pairs(finishline:GetChildren()) do
-            if obj:IsA("TouchTransmitter") or obj:IsA("TouchInterest") then
-                firetouchinterest(hrp, finishline, 0)
-                firetouchinterest(hrp, finishline, 1)
-            end
-        end
-    end
-})
+SurvivorRight:AddButton({Text = "Instant Escape", Func = InstantEscape})
 
 SurvivorRight:AddToggle("SpeedBoostToggle", {
     Text = "Speed Boost",
     Default = false,
     Callback = function(enabled)
-        if enabled then startBoost("speedboost", Options.SpeedLevel.Value, "Speed Boost")
-        else stopBoost("speedboost", "Speed Boost") end
+        if enabled then 
+            startBoost("speedboost", Options.SpeedLevel.Value, "Speed Boost") 
+        else 
+            stopBoost("speedboost", "Speed Boost") 
+        end
     end
 })
 
@@ -1842,8 +2000,11 @@ SurvivorRight:AddToggle("RepairBoostToggle", {
     Text = "Repair Boost",
     Default = false,
     Callback = function(enabled)
-        if enabled then startBoost("repairboost", Options.RepairLevel.Value, "Repair Boost")
-        else stopBoost("repairboost", "Repair Boost") end
+        if enabled then 
+            startBoost("repairboost", Options.RepairLevel.Value, "Repair Boost") 
+        else 
+            stopBoost("repairboost", "Repair Boost") 
+        end
     end
 })
 
@@ -1861,27 +2022,17 @@ SurvivorRight:AddSlider("RepairLevel", {
 })
 
 --================================================================--
--- VISUAL TAB
+-- VISUAL TAB (ESP)
 --================================================================--
-local ESPRight = EspTab:AddLeftGroupbox("ESP", "eye")
+ESPRight:AddToggle("KillersESP", {Text = "Killers ESP", Default = false, Callback = function(v) espSettings.Killers.Enabled = v end})
+ESPRight:AddToggle("SurvivorsESP", {Text = "Survivors ESP", Default = false, Callback = function(v) espSettings.Survivors.Enabled = v end})
+ESPRight:AddToggle("GeneratorsESP", {Text = "Generators ESP", Default = false, Callback = function(v) espSettings.Generators.Enabled = v end})
+ESPRight:AddToggle("PalletsESP", {Text = "Pallets ESP", Default = false, Callback = function(v) espSettings.Pallets.Enabled = v end})
+ESPRight:AddToggle("ExitGatesESP", {Text = "Exit Gates ESP", Default = false, Callback = function(v) espSettings.ExitGates.Enabled = v end})
 
-ESPRight:AddLabel("Halloween Event")
-ESPRight:AddToggle("PumpkinsESP", {  
-    Text = "Pumpkins ESP",
-    Default = false,
-    Callback = function(v) espSettings.Pumpkins.Enabled = v end
-})
-ESPRight:AddDivider()
-ESPRight:AddToggle("KillersESP",       { Text = "Killers ESP",       Default = false, Callback = function(v) espSettings.Killers.Enabled = v end })
-ESPRight:AddToggle("SurvivorsESP",     { Text = "Survivors ESP",     Default = false, Callback = function(v) espSettings.Survivors.Enabled = v end })
-ESPRight:AddToggle("GeneratorsESP",    { Text = "Generators ESP",    Default = false, Callback = function(v) espSettings.Generators.Enabled = v end })
-ESPRight:AddToggle("PalletsESP",       { Text = "Pallets ESP",       Default = false, Callback = function(v) espSettings.Pallets.Enabled = v end })
-ESPRight:AddToggle("ExitGatesESP",     { Text = "Exit Gates ESP",    Default = false, Callback = function(v) espSettings.ExitGates.Enabled = v end })
 --================================================================--
 -- TROLL TAB
 --================================================================--
-local TrollLeft = TrollTab:AddLeftGroupbox("Troll", "flame")
-
 TrollLeft:AddToggle("FlipUIToggle", {
     Text = "Show B-Flip & F-Flip Buttons",
     Default = false,
@@ -1899,80 +2050,30 @@ TrollLeft:AddToggle("FlipUIToggle", {
     end
 })
 
-TrollLeft:AddButton({
-    Text = "Frontflip",
-    Func = function()
-        PerformFrontflip()
-    end
-})
+TrollLeft:AddButton({Text = "Frontflip", Func = PerformFrontflip})
+TrollLeft:AddButton({Text = "Backflip", Func = PerformBackflip})
 
-TrollLeft:AddButton({
-    Text = "Backflip",
-    Func = function()
-        PerformBackflip()
-    end
-})
-
-
-
-
-
-
-
---================================================================--
--- EMOTE
---================================================================--
-local TrollRight = TrollTab:AddRightGroupbox("EMOTE", "laugh")
-
-
---==============================================================
--- UI (Dropdown + Play + Stop)
---==============================================================
 local selectedEmote = nil
-
 local emoteNames = {}
-for name in pairs(emotes) do
-    table.insert(emoteNames, name)
-end
+for name in pairs(emotes) do table.insert(emoteNames, name) end
 
--- Dropdown
 TrollRight:AddDropdown("EmoteSelector", {
     Text = "Select Emote",
     Values = emoteNames,
     Default = emoteNames[1],
     Searchable = true,
-    Callback = function(v)
-        selectedEmote = v
-    end
+    Callback = function(v) selectedEmote = v end
 })
 
--- Play Button
-TrollRight:AddButton({
-    Text = "Play Emote",
-    Func = function()
-        if selectedEmote then
-            playEmote(selectedEmote)
-        else
-            warn("No emote selected.")
-        end
-    end
-})
-
--- Stop Button
-TrollRight:AddButton({
-    Text = "Stop Emote",
-    Func = function()
-        stopCurrentEmote()
-    end
-})
+TrollRight:AddButton({Text = "Play Emote", Func = function() if selectedEmote then playEmote(selectedEmote) else warn("No emote selected.") end end})
+TrollRight:AddButton({Text = "Stop Emote", Func = stopCurrentEmote})
 
 --================================================================--
--- GOD MODE (BETA)
+-- OVERPOWERED TAB
 --================================================================--
+TrollLeft:AddDivider()
 
-local OpLeft = TrollTab:AddLeftGroupbox("OVERPOWERED", "robot")
-
-OpLeft:AddButton({
+TrollLeft:AddButton({
     Text = "Godmode (Beta)",
     Func = function()
         if hasTeleported then return end
@@ -1990,119 +2091,23 @@ OpLeft:AddButton({
     end
 })
 
-
-OpLeft:AddToggle("FollowKillerToggle", {
+TrollLeft:AddToggle("FollowKillerToggle", {
     Text = "Block Killer View",
     Default = false,
-    Callback = function(enabled)
-        followKiller = enabled
-    end
+    Callback = function(enabled) followKiller = enabled end
 })
-
-
-
-
-
-
 
 --================================================================--
--- TELEPORT 
+-- TELEPORT TAB
 --================================================================--
-local TeleportLeft     = TeleportTab:AddLeftGroupbox("LOBBY & INGAME", "refresh-ccw")
+TeleportLeft:AddButton({Text = "TP to Lobby", Func = TeleportToLobby})
+TeleportLeft:AddButton({Text = "TP to In-Game", Func = TeleportToInGame})
+TeleportRight:AddButton({Text = "TP to Killer", Func = TeleportToKiller})
+TeleportRight:AddButton({Text = "TP to Survivor", Func = TeleportToSurvivor})
 
-TeleportLeft:AddButton({
-    Text = "TP to Lobby",
-    Func = function()
-        local char = LP.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = workspace.SpawnLocation.CFrame + Vector3.new(0, 5, 0)
-            Library:Notify({Title = "Teleported", Description = "You are in the Lobby!", Time = 3})
-        end
-    end
-})
-
-TeleportLeft:AddButton({
-    Text = "TP to In-Game",
-    Func = function()
-        local char = LP.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local spawn = workspace.Map:FindFirstChild("SurvivorSpawn")
-            if spawn then
-                char.HumanoidRootPart.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
-                Library:Notify({Title = "Teleported", Description = "You are In-Game!", Time = 3})
-            else
-                Library:Notify({Title = "Error", Description = "In-Game spawn not found!", Time = 3})
-            end
-        end
-    end
-})
-
-local TeleportRight   = TeleportTab:AddRightGroupbox("ROLE TELEPORT", "refresh-ccw")
-
-TeleportRight:AddButton({
-    Text = "TP to Killer",
-    Func = function()
-        local char = LP.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-        for _, player in pairs(game.Players:GetPlayers()) do
-            if getRole(player) == "Killer" and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                char.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
-                Library:Notify({Title="Teleported", Description="To Killer", Time=3})
-                return
-            end
-        end
-
-        Library:Notify({Title="Error", Description="No killer found", Time=3})
-    end
-})
-
-local lastSurvivorIndex = 0
-
-TeleportRight:AddButton({
-    Text = "TP to Survivor",
-    Func = function()
-        local char = LP.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-        local survivors = {}
-        for _, player in pairs(game.Players:GetPlayers()) do
-            if getRole(player) == "Survivor" and player ~= LP and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                table.insert(survivors, player)
-            end
-        end
-
-        if #survivors == 0 then
-            Library:Notify({Title="Error", Description="No other survivor found", Time=3})
-            return
-        end
-
-        lastSurvivorIndex = lastSurvivorIndex + 1
-        if lastSurvivorIndex > #survivors then
-            lastSurvivorIndex = 1
-        end
-
-        local target = survivors[lastSurvivorIndex]
-        char.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
-        Library:Notify({Title="Teleported", Description="To Survivor", Time=3})
-    end
-})
 --================================================================--
 -- MISC TAB
 --================================================================--
-local MiscLeft     = MiscTab:AddLeftGroupbox("MISC", "sun")
-local ServerRight  = MiscTab:AddRightGroupbox("SERVER", "server")
-local CrosshairLeft = MiscTab:AddLeftGroupbox("CROSSHAIR", "crosshair")
---[[
-MiscLeft:AddSlider("FOVSlider", {
-    Text = "Fov",
-    Default = 95,
-    Min = 70,
-    Max = 150,
-    Suffix = " degrees",
-    Callback = function(value) DESIRED_FOV = value end
-})
-]]
 MiscLeft:AddButton({
     Text = "Full Brightness",
     Func = function()
@@ -2115,11 +2120,10 @@ MiscLeft:AddButton({
 MiscLeft:AddToggle("LowGraphics", {
     Text = "Low Graphics (FPS Boost)",
     Default = false,
-    Callback = function(enabled)
-        if enabled then applyLowGraphics() else restoreGraphics() end
-    end
+    Callback = function(enabled) if enabled then applyLowGraphics() else restoreGraphics() end end
 })
 
+-- CROSSHAIR
 CrosshairLeft:AddToggle("CrosshairToggle", {
     Text = "Enable Crosshair",
     Default = false,
@@ -2134,25 +2138,23 @@ CrosshairLeft:AddToggle("CrosshairToggle", {
 CrosshairLeft:AddLabel("Crosshair Color"):AddColorPicker("CrosshairColor", {
     Default = lineColor,
     Title = "Pick Crosshair Color",
-    Callback = function(value)
-        lineColor = value
-    end
+    Callback = function(value) lineColor = value end
 })
 
+-- SERVER
 ServerRight:AddLabel("60% Accurate Not 100%")
 ServerRight:AddDivider()
 
 local selectedRegion = "US"
-
 ServerRight:AddDropdown("RegionDropdown", {
     Text = "Choose Server Region",
     Values = {"US", "Japan", "Philippines/Asia", "China/HK"},
     Default = 1,
     Multi = false,
     Searchable = false,
-    Callback = function(value)
-        selectedRegion = value
-        Library:Notify({Title = "Region", Description = "Selected: " .. value, Time = 2})
+    Callback = function(value) 
+        selectedRegion = value 
+        Library:Notify({Title = "Region", Description = "Selected: " .. value, Time = 2}) 
     end
 })
 
@@ -2163,53 +2165,33 @@ ServerRight:AddButton({
             Library:Notify({Title = "Error", Description = "HTTP not enabled!", Time = 3})
             return
         end
-
         Library:Notify({Title = "Searching", Description = "Finding " .. selectedRegion .. " server...", Time = 3})
-
-        local regionPing = {
-            ["US"] = 150,
-            ["Japan"] = 120,
-            ["Philippines/Asia"] = 200,
-            ["China/HK"] = 180
-        }
-
+        local regionPing = {["US"] = 150, ["Japan"] = 120, ["Philippines/Asia"] = 200, ["China/HK"] = 180}
         local maxPing = regionPing[selectedRegion] or 200
         local servers = {}
-
         local success, req = pcall(function()
-            return request({
-                Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100",
-                Method = "GET"
-            })
+            return request({Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100", Method = "GET"})
         end)
-
         if not success or not req then
             Library:Notify({Title = "Failed", Description = "Request error!", Time = 3})
             return
         end
-
         local body = game:GetService("HttpService"):JSONDecode(req.Body)
-
         if body and body.data then
             for _, v in pairs(body.data) do
                 if v.playing and v.maxPlayers and v.id ~= game.JobId then
                     if v.playing < v.maxPlayers then
                         local ping = v.ping or 999
-                        if ping <= maxPing then
-                            table.insert(servers, {id = v.id, ping = ping})
-                        end
+                        if ping <= maxPing then table.insert(servers, {id = v.id, ping = ping}) end
                     end
                 end
             end
         end
-
         if #servers > 0 then
-            table.sort(servers, function(a, b) return a.ping < b.ping end)
+            table.sort(servers, function(a,b) return a.ping < b.ping end)
             local target = servers[1]
             Library:Notify({Title = "Joining", Description = selectedRegion .. " (Ping: " .. target.ping .. "ms)", Time = 3})
-            task.delay(1, function()
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, target.id, LP)
-            end)
+            task.delay(1, function() game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, target.id, LP) end)
         else
             Library:Notify({Title = "No Server", Description = "None found in " .. selectedRegion, Time = 3})
         end
@@ -2217,7 +2199,6 @@ ServerRight:AddButton({
 })
 
 ServerRight:AddDivider()
-
 ServerRight:AddButton({
     Text = "Server Hop (Random)",
     Func = function()
@@ -2227,69 +2208,48 @@ ServerRight:AddButton({
         local body = game:GetService("HttpService"):JSONDecode(req.Body)
         if body and body.data then
             for _, v in pairs(body.data) do
-                if v.playing < v.maxPlayers and v.id ~= game.JobId then
-                    table.insert(servers, 1, v.id)
-                end
+                if v.playing < v.maxPlayers and v.id ~= game.JobId then table.insert(servers, 1, v.id) end
             end
         end
         if #servers > 0 then
-            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], LP)
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, servers[math.random(1,#servers)], LP)
         else
             Library:Notify({Title = "Server Hop", Description = "No servers found!", Time = 3})
         end
     end
 })
 
-ServerRight:AddButton({
-    Text = "Rejoin",
-    Func = function()
-        Library:Notify({Title = "Rejoin", Description = "Rejoining current server...", Time = 2})
-        game:GetService("TeleportService"):Teleport(game.PlaceId, LP)
-    end
-})
+ServerRight:AddButton({Text = "Rejoin", Func = function() Library:Notify({Title = "Rejoin", Description = "Rejoining current server...", Time = 2}) game:GetService("TeleportService"):Teleport(game.PlaceId, LP) end})
 
 ServerRight:AddLabel("Find Best Server For You")
 ServerRight:AddDivider()
-
 ServerRight:AddButton({
     Text = "Join LowPing Server",
     Func = function()
         Library:Notify({Title = "Searching", Description = "Finding best server...", Time = 2})
-
         task.spawn(function()
             local success, req = pcall(function()
-                return request({
-                    Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100",
-                    Method = "GET"
-                })
+                return request({Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100", Method = "GET"})
             end)
-
             if not success or not req then
                 Library:Notify({Title = "Error", Description = "Failed to fetch servers", Time = 3})
                 return
             end
-
             local body = game:GetService("HttpService"):JSONDecode(req.Body)
             local best = nil
-
             if body and body.data then
                 for _, v in pairs(body.data) do
                     if v.playing and v.maxPlayers and v.id ~= game.JobId then
                         if v.playing < v.maxPlayers then
                             local ping = v.ping or 999
-                            if not best or ping < (best.ping or 999) then
-                                best = v
-                            end
+                            if not best or ping < (best.ping or 999) then best = v end
                         end
                     end
                 end
             end
-
             if best then
                 Library:Notify({Title = "Joining", Description = "Best ping: " .. best.ping .. "ms", Time = 3})
-                task.delay(0.5, function()
-                    game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, best.id, LP)
-                end)
+                task.delay(0.5, function() game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, best.id, LP) end)
             else
                 Library:Notify({Title = "No Server", Description = "No available servers found", Time = 3})
             end
