@@ -1,3 +1,8 @@
+local targetPlaceId = 93978595733734
+
+if game.PlaceId ~= targetPlaceId then
+    return
+end
 --================================================================--
 --                    VGXMOD HUB
 --================================================================--
@@ -28,20 +33,15 @@ local Toggles = Library.Toggles
 --================================================================--
 -- CORE SERVICES
 --================================================================--
-local Players           = game:GetService("Players")
-local RunService        = game:GetService("RunService")
-local Workspace         = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting          = game:GetService("Lighting")
-local UserInputService  = game:GetService("UserInputService")
-local TweenService      = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local UIS = game:GetService("UserInputService")
 
-local LocalPlayer = Players.LocalPlayer
-local Camera      = Workspace.CurrentCamera
-
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid  = Character:WaitForChild("Humanoid")
-local Head      = Character:WaitForChild("Head")
+local LP = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 --================================================================--
 -- BLOCK REMOTE SYSTEM
 --================================================================--
@@ -1256,7 +1256,6 @@ end
 --================================================================--
 -- GODMOD BETA SYSTEM 
 --================================================================--
-local LP = game:GetService("Players").LocalPlayer
 local hasTeleported = false
 
 local function hasSkillcheck()
@@ -1676,12 +1675,7 @@ local function TeleportToSurvivor()
     Library:Notify({Title="Teleported", Description="To Survivor", Time=3})
 end
 
-
-
-
-
 -- third person view killer
-
 local CurrentCamera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -1774,11 +1768,6 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
 	if shiftLockEnabled then updateShiftLock() end
 end)
 
-
-
-
-
-
 -- auto tp lobby Carry
 getgenv().TpOnCarry = false
 
@@ -1811,10 +1800,6 @@ local function setup()
 end
 
 setup()
-
-
-
-
 --================================================================--
 -- GUI - LAYOUT
 --================================================================--
