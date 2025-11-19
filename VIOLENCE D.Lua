@@ -70,7 +70,7 @@ end
 --================================================================--
 local DESIRED_FOV = 95
 
--- ESP SETTINGS (PUMPKINS REMOVED)
+-- ESP SETTINGS
 local espSettings = {
     Survivors  = {Enabled=false, Color=Color3.fromRGB(255,255,255), Transparency=0.9},
     Killers    = {Enabled=false, Color=Color3.fromRGB(255,0,0), Transparency=0.5},
@@ -110,7 +110,7 @@ local function getSurvivorItem(player)
 end
 
 --================================================================--
--- TRACK OBJECTS (PUMPKINS REMOVED)
+-- TRACK OBJECTS
 --================================================================--
 local trackedObjects = {}
 
@@ -410,12 +410,6 @@ RunService.Heartbeat:Connect(function()
                     local c = getProgressColor(progress)
                     ensureLabel(obj, string.format("<font color='rgb(255,255,255)'>Gen</font> <font color='rgb(200,200,200)'>(%d)</font> <font color='rgb(%d,%d,0)'>[%d%%]</font>", dist, math.floor(c.R*255), math.floor(c.G*255), percent))
                 end
-            elseif typeName == "Pumpkins" then
-                local root = obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                if root then
-                    local dist = math.floor((root.Position - LPPos).Magnitude)
-                    ensureLabel(obj, string.format("<font color='rgb(255,200,0)'>Pumpkin</font> <font color='rgb(200,200,200)'>(%d)</font>", dist))
-                end
             else
                 clearLabel(obj)
             end
@@ -445,7 +439,6 @@ RunService.Heartbeat:Connect(function()
         end
     end
 end)
-
 --================================================================--
 -- LOW GRAPHICS
 --================================================================--
@@ -1675,6 +1668,30 @@ local function TeleportToSurvivor()
     Library:Notify({Title="Teleported", Description="To Survivor", Time=3})
 end
 
+--tp me to Down survivor 
+local lastSurvivorIndex = 0
+
+local function TeleportToDownedSurvivor()
+    local char = LP.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    
+    local downed = {}
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if getRole(player) == "Survivor" and player ~= LP and player.Character then
+            local hum = player.Character:FindFirstChild("Humanoid")
+            if hum and hum.Health <= 20 and hum.Health > 0 then
+                table.insert(downed, player)
+            end
+        end
+    end
+    
+    if #downed == 0 then return end
+    
+    local target = downed[math.random(1, #downed)]
+    char.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+end
+
+
 -- third person view killer
 local CurrentCamera = workspace.CurrentCamera
 local Players = game:GetService("Players")
@@ -1771,10 +1788,6 @@ end)
 -- auto tp lobby Carry
 getgenv().TpOnCarry = false
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-
 local function setup()
     local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local wasCarrying = false
@@ -1800,6 +1813,37 @@ local function setup()
 end
 
 setup()
+
+-- auto tp survivor Drop survivor 
+
+
+-- anti stun
+
+
+-- tp hook survivor 
+local lastHookIndex = 0
+
+local function TeleportToRandomHook()
+    local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local hooks = {}
+
+    for _, v in workspace.Map:GetDescendants() do
+        if v:IsA("BasePart") and v.Name:lower():find("hook") then
+            table.insert(hooks, v)
+        end
+    end
+
+    if #hooks == 0 then return end
+
+    lastHookIndex = (lastHookIndex % #hooks) + 1
+    local hookPart = hooks[lastHookIndex]
+
+    hrp.CFrame = hookPart.CFrame + Vector3.new(0, 6, 0)
+end
+
+
 --================================================================--
 -- GUI - LAYOUT
 --================================================================--
@@ -1932,12 +1976,18 @@ KillerRight:AddToggle("BlockFlashlightRemote", {
 
 
 KillerLeft3:AddToggle("TpOnCarry", {
-    Text = "Auto Tp Lobby Carry",
+    Text = "Auto Tp Lobby (Carry)",
     Default = false,
     Callback = function(v) getgenv().TpOnCarry = v end
 })
+--[[
+KillerLeft3:AddToggle("TpOnDrop",{
+    Text = "Auto TP Survivor on (Drop)",
+    Default = false,
+    Callback = function(v) getgenv().TpOnDrop = v end
+})
 
-
+]]
 
 KillerLeft2:AddToggle("ShowRapidAttackButton", {
     Text = "Show Rapid Attack Button",
@@ -2186,7 +2236,11 @@ TeleportLeft:AddButton({Text = "TP to Lobby", Func = TeleportToLobby})
 TeleportLeft:AddButton({Text = "TP to In-Game", Func = TeleportToInGame})
 TeleportRight:AddButton({Text = "TP to Killer", Func = TeleportToKiller})
 TeleportRight:AddButton({Text = "TP to Survivor", Func = TeleportToSurvivor})
-
+TeleportRight:AddButton({Text = "TP to Downed",Func = TeleportToDownedSurvivor})
+TeleportRight:AddButton({
+    Text = "TP to Hook",
+    Func = TeleportToRandomHook
+})
 --================================================================--
 -- MISC TAB
 --================================================================--
