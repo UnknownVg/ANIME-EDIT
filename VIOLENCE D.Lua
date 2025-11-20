@@ -117,28 +117,21 @@ local trackedObjects = {}
 local function trackObject(obj)
     if not obj or not obj.Name then return end
     local n = obj.Name:lower()
-
-    if n:find("generator") then
-        trackedObjects[obj] = "Generators"
-    elseif n:find("pallet") then
-        trackedObjects[obj] = "Pallets"
-    elseif n:find("gate") then
-        trackedObjects[obj] = "ExitGates"
-    elseif n:find("window") then
-        trackedObjects[obj] = "Windows"
+    if n:find("generator") then trackedObjects[obj] = "Generators"
+    elseif n:find("pallet") then trackedObjects[obj] = "Pallets"
+    elseif n:find("gate") then trackedObjects[obj] = "ExitGates"
+    elseif n:find("window") then trackedObjects[obj] = "Windows"
     end
 end
 
+-- Track existing objects
 for _, v in ipairs(Workspace:GetDescendants()) do
     if v:IsA("Model") then trackObject(v) end
 end
 
+-- Track new objects
 Workspace.DescendantAdded:Connect(function(obj)
     if obj:IsA("Model") then trackObject(obj) end
-end)
-
-Workspace.DescendantRemoving:Connect(function(obj)
-    trackedObjects[obj] = nil
 end)
 
 --================================================================--
@@ -1498,6 +1491,29 @@ local function DisableAntiBlind()
     end
 end
 
+-- anti stun
+local function GetStunRemote()
+    if not remotes then return nil end
+    local palletRemote = remotes:FindFirstChild("Pallet")
+    if not palletRemote then return nil end
+    local jasonRemote = palletRemote:FindFirstChild("Jason")
+    if not jasonRemote then return nil end
+    return jasonRemote:FindFirstChild("Stun")
+end
+
+local function EnableAntiStun()
+    local stunRemote = GetStunRemote()
+    if stunRemote then
+        blockRemote(stunRemote)
+    end
+end
+
+local function DisableAntiStun()
+    local stunRemote = GetStunRemote()
+    if stunRemote then
+        unblockRemote(stunRemote)
+    end
+end
 
 
 -- perfect skill check gen
@@ -1843,6 +1859,59 @@ local function TeleportToRandomHook()
     hrp.CFrame = hookPart.CFrame + Vector3.new(0, 6, 0)
 end
 
+-- drop tp to survivor 
+getgenv().DropWaitTp = false
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local lastIndex = 0
+
+local function getNextSurvivor()
+    local survivors = {}
+    for _, p in Players:GetPlayers() do
+        if p.Team and p.Team.Name == "Survivors" and p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            table.insert(survivors, p)
+        end
+    end
+    if #survivors == 0 then return end
+    lastIndex = (lastIndex % #survivors) + 1
+    return survivors[lastIndex]
+end
+
+local function setup()
+    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local wasCarrying = false
+
+    RunService.Heartbeat:Connect(function()
+        if not getgenv().DropWaitTp then return end
+        if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local carrying = Character:GetAttribute("IsCarrying") == true
+
+        -- Detect the exact moment you DROP (carrying → not carrying)
+        if wasCarrying and not carrying then
+            task.wait(1)   -- wait exactly 1 second after you drop
+            local next = getNextSurvivor()
+            if next and next.Character then
+                local hrp = next.Character.HumanoidRootPart
+                local back = hrp.CFrame.LookVector * -2
+                Character.HumanoidRootPart.CFrame = hrp.CFrame + back + Vector3.new(0, 2, 0)
+            end
+        end
+
+        wasCarrying = carrying
+    end)
+
+    LocalPlayer.CharacterAdded:Connect(function(c)
+        Character = c
+        wasCarrying = false
+    end)
+end
+
+setup()
+
 
 --================================================================--
 -- GUI - LAYOUT
@@ -1966,13 +2035,24 @@ KillerRight:AddToggle("KillerShiftLock", {
 })
 
 KillerRight:AddToggle("BlockFlashlightRemote", {
-    Text = "Anti-Blind",
+    Text = "Anti Blind",
     Default = false,
     Callback = function(enabled)
         if enabled then EnableAntiBlind() else DisableAntiBlind() end
     end
 })
 
+KillerRight:AddToggle("AntiStun", {
+    Text = "Anti Stun",
+    Default = false,
+    Callback = function(v)
+        if v then
+            EnableAntiStun()
+        else
+            DisableAntiStun()
+        end
+    end
+})
 
 
 KillerLeft3:AddToggle("TpOnCarry", {
@@ -1980,14 +2060,15 @@ KillerLeft3:AddToggle("TpOnCarry", {
     Default = false,
     Callback = function(v) getgenv().TpOnCarry = v end
 })
---[[
-KillerLeft3:AddToggle("TpOnDrop",{
-    Text = "Auto TP Survivor on (Drop)",
+
+
+KillerLeft3:AddToggle("DropWaitTp", {
+    Text = "Auto Tp Survivor (Drop)",
     Default = false,
-    Callback = function(v) getgenv().TpOnDrop = v end
+    Callback = function(v) getgenv().DropWaitTp = v end
 })
 
-]]
+
 
 KillerLeft2:AddToggle("ShowRapidAttackButton", {
     Text = "Show Rapid Attack Button",
