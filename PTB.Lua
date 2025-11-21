@@ -524,6 +524,22 @@ MainLeft:AddToggle("ShowHitboxButtons", {
     end,
 })
 
+
+MainLeft:AddLabel("Hitbox Keybind"):AddKeyPicker("HitboxKeybind", {
+	Default = "R",
+	Mode = "Toggle",
+	Text = "Toggle Size (1 / 5)",
+	Callback = function()
+		if currentHitboxSize == 5 then
+			currentHitboxSize = 1
+		else
+			currentHitboxSize = 7
+		end
+	end,
+	ChangedCallback = function() end,
+})
+
+
 --=== ESP Controls (Bomb + Tracer)
 MainRight:AddToggle("ESPNameToggle", {
     Text = "ESP Bomb",
