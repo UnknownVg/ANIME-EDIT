@@ -11,6 +11,7 @@ print("------------------------------------------------------------------")
 -- LOAD LIBRARY (Vgxmod UI)
 --================================================================--
 local repo = "https://raw.githubusercontent.com/Devilx89/CUSTOM-1/refs/heads/main/"
+
 local success, err = pcall(function()
     Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
     ThemeManager = loadstring(game:HttpGet(repo .. "Add-ons/ThemeManager.lua"))()
@@ -18,13 +19,12 @@ local success, err = pcall(function()
 end)
 
 if not success then
-    warn("Failed to load Vgxmod Hub libraries: " .. tostring(err))
+    print("Failed to load Vgxmod Hub libraries: " .. tostring(err))
     return
 end
 
 local Options = Library.Options
 local Toggles = Library.Toggles
-
 --================================================================--
 -- CORE SERVICES
 --================================================================--
