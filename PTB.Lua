@@ -478,25 +478,32 @@ MainLeft:AddToggle("HitboxToggle", {
 
 local currentHitboxSize = 1
 local maxSize = 7
-local hitboxEnabled = false
+local hitboxEnabled = true  -- make sure toggle is enabled
 
 MainLeft:AddLabel("Hitbox Keybind"):AddKeyPicker("HitboxKeybind", {
-	Default = "R",
-	Mode = "Toggle",
-	Text = "Cycle Size 1-7",
-	Callback = function(key)
-		if hitboxEnabled then
-			currentHitboxSize = currentHitboxSize + 1
-			if currentHitboxSize > maxSize then
-				currentHitboxSize = 1
-			end
-			for _, plr in pairs(Players:GetPlayers()) do
-				if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-					plr.Character.HumanoidRootPart.Size = Vector3.new(currentHitboxSize, currentHitboxSize, currentHitboxSize)
-				end
-			end
-		end
-	end,
+    Default = "R",
+    Mode = "Toggle",
+    Text = "Cycle Size 1-7",
+    Callback = function(key)
+        -- cycle hitbox size
+        currentHitboxSize = currentHitboxSize + 1
+        if currentHitboxSize > maxSize then
+            currentHitboxSize = 1
+        end
+
+        -- apply size to all players
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                local pm = Workspace:FindFirstChild(plr.Name)
+                if pm then
+                    local collisionPart = pm:FindFirstChild("CollisionPart")
+                    if collisionPart and collisionPart:IsA("BasePart") then
+                        collisionPart.Size = Vector3.new(currentHitboxSize, currentHitboxSize, currentHitboxSize)
+                    end
+                end
+            end
+        end
+    end,
 })
 
 
