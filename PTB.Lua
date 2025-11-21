@@ -476,20 +476,15 @@ MainLeft:AddToggle("HitboxToggle", {
     end,
 })
 
-local currentHitboxSize = 1
-local maxSize = 7
-local hitboxEnabled = true  -- make sure toggle is enabled
+local hitboxToggleState = false -- false = size 1, true = size 7
 
-MainLeft:AddLabel("Hitbox Keybind"):AddKeyPicker("HitboxKeybind", {
+MainLeft:AddKeyPicker("HitboxKeybind", {
     Default = "R",
     Mode = "Toggle",
-    Text = "Cycle Size 1-7",
+    Text = "Toggle Hitbox Size 1/7",
     Callback = function(key)
-        -- cycle hitbox size
-        currentHitboxSize = currentHitboxSize + 1
-        if currentHitboxSize > maxSize then
-            currentHitboxSize = 1
-        end
+        hitboxToggleState = not hitboxToggleState
+        currentHitboxSize = hitboxToggleState and 7 or 1
 
         -- apply size to all players
         for _, plr in pairs(Players:GetPlayers()) do
@@ -503,6 +498,12 @@ MainLeft:AddLabel("Hitbox Keybind"):AddKeyPicker("HitboxKeybind", {
                 end
             end
         end
+
+        Library:Notify({
+            Title = "Hitbox",
+            Description = "Set size to " .. tostring(currentHitboxSize),
+            Time = 2
+        })
     end,
 })
 
