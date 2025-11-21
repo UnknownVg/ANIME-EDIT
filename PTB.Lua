@@ -11,7 +11,6 @@ print("------------------------------------------------------------------")
 -- LOAD LIBRARY (Vgxmod UI)
 --================================================================--
 local repo = "https://raw.githubusercontent.com/Devilx89/CUSTOM-1/refs/heads/main/"
-
 local success, err = pcall(function()
     Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
     ThemeManager = loadstring(game:HttpGet(repo .. "Add-ons/ThemeManager.lua"))()
@@ -19,12 +18,13 @@ local success, err = pcall(function()
 end)
 
 if not success then
-    print("Failed to load Vgxmod Hub libraries: " .. tostring(err))
+    warn("Failed to load Vgxmod Hub libraries: " .. tostring(err))
     return
 end
 
 local Options = Library.Options
 local Toggles = Library.Toggles
+
 --================================================================--
 -- CORE SERVICES
 --================================================================--
@@ -476,30 +476,6 @@ MainLeft:AddToggle("HitboxToggle", {
         end
     end,
 })
-
-local currentHitboxSize = 1
-local maxSize = 7
-local hitboxEnabled = false
-
-MainLeft:AddLabel("Hitbox Keybind"):AddKeyPicker("HitboxKeybind", {
-	Default = "R",
-	Mode = "Toggle",
-	Text = "Cycle Size 1-7",
-	Callback = function(key)
-		if hitboxEnabled then
-			currentHitboxSize = currentHitboxSize + 1
-			if currentHitboxSize > maxSize then
-				currentHitboxSize = 1
-			end
-			for _, plr in pairs(Players:GetPlayers()) do
-				if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-					plr.Character.HumanoidRootPart.Size = Vector3.new(currentHitboxSize, currentHitboxSize, currentHitboxSize)
-				end
-			end
-		end
-	end,
-})
-
 
 MainLeft:AddInput("HitboxSizeInput", {
     Default = "",
