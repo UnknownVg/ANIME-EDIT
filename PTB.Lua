@@ -477,45 +477,27 @@ MainLeft:AddToggle("HitboxToggle", {
     end,
 })
 
-local Players = game:GetService("Players")
-local LP = Players.LocalPlayer
-
-local hitboxEnabled = false
 local currentHitboxSize = 1
 local maxSize = 7
-
-task.spawn(function()
-	while true do
-		if hitboxEnabled then
-			for _, plr in pairs(Players:GetPlayers()) do
-				if plr ~= LP and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-					plr.Character.HumanoidRootPart.Size = Vector3.new(currentHitboxSize, currentHitboxSize, currentHitboxSize)
-					plr.Character.HumanoidRootPart.Transparency = 1
-					plr.Character.HumanoidRootPart.CanCollide = false
-				end
-			end
-		end
-		task.wait(0.1)
-	end
-end)
-
-Options.HitboxToggle:OnChanged(function(v)
-	hitboxEnabled = v
-end)
+local hitboxEnabled = false
 
 MainLeft:AddLabel("Hitbox Keybind"):AddKeyPicker("HitboxKeybind", {
 	Default = "R",
 	Mode = "Toggle",
 	Text = "Cycle Size 1-7",
-	Callback = function()
+	Callback = function(key)
 		if hitboxEnabled then
 			currentHitboxSize = currentHitboxSize + 1
 			if currentHitboxSize > maxSize then
 				currentHitboxSize = 1
 			end
+			for _, plr in pairs(Players:GetPlayers()) do
+				if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+					plr.Character.HumanoidRootPart.Size = Vector3.new(currentHitboxSize, currentHitboxSize, currentHitboxSize)
+				end
+			end
 		end
 	end,
-	ChangedCallback = function() end,
 })
 
 
