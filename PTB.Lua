@@ -414,52 +414,6 @@ player.CharacterAdded:Connect(function()
     end
 end)
 
-
-
-
-
-
---================================================================--
--- HITBOX R-KEY TOGGLE (STANDALONE) - ADD THIS BLOCK
---================================================================--
-local UserInputService = game:GetService("UserInputService")
-local rKeyToggleState = false  -- false = 1, true = 7
-
-local function applyHitboxSize(size)
-    currentHitboxSize = size
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name ~= LocalPlayer.Name then
-            local character = Workspace:FindFirstChild(player.Name)
-            if character then
-                local collision = character:FindFirstChild("CollisionPart")
-                if collision and collision:IsA("BasePart") then
-                    collision.Size = Vector3.new(size, size, size)
-                end
-            end
-        end
-    end
-end
-
--- R Key Listener (toggle between 1 and 7)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.R then
-        if Toggles.HitboxRToggle and Toggles.HitboxRToggle.Value then
-            rKeyToggleState = not rKeyToggleState
-            local newSize = rKeyToggleState and 7 or 1
-            applyHitboxSize(newSize)
-            
-            Library:Notify({
-                Title = "Hitbox Size",
-                Description = rKeyToggleState and "Expanded → 7" or "Normal → 1",
-                Time = 2
-            })
-        end
-    end
-end)
-
-
-
 --================================================================--
 -- GUI: CREATE WINDOW (keep your original Info tab unchanged)
 --================================================================--
@@ -569,23 +523,6 @@ MainLeft:AddToggle("ShowHitboxButtons", {
             Library:Notify({ Title = "Hitbox UI", Description = "Hidden", Time = 2 })
         end
     end,
-})
-
-
-MainLeft:AddToggle("HitboxRToggle", {
-    Text = "Hitbox Keybind (R)",
-    Default = false,
-    Tooltip = "Press R → Hitbox 7 | Press R again → Hitbox 1",
-    Callback = function(value)
-        if value then
-            Library:Notify({ Title = "Hitbox Keybind", Description = "Press R to toggle 1 ↔ 7", Time = 3 })
-            -- Force default size 1 when enabling the keybind
-            rKeyToggleState = false
-            currentHitboxSize = 1
-        else
-            Library:Notify({ Title = "Hitbox Keybind", Description = "Disabled", Time = 2 })
-        end
-    end
 })
 
 --=== ESP Controls (Bomb + Tracer)
