@@ -35,6 +35,11 @@ local RunService = game:GetService("RunService")
 local LP         = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local TEvent = require(ReplicatedStorage.Shared.Core.TEvent)
+
+local LootsWorld = workspace.GameSystem.Loots.World
+local InteractiveItem = workspace.GameSystem.InteractiveItem
+local NPCModels = workspace.GameSystem.NPCModels
 --================================================================--
 -- ESP SYSTEM 
 --================================================================--
@@ -48,34 +53,39 @@ local ESP = {
     OilBucket = { Enabled = false, Color = Color3.fromRGB(0, 255, 255), Transparency = 0.7 },
     Loot      = { Enabled = false, Color = Color3.fromRGB(0, 255, 0), Transparency = 0.7 },
     Monster   = { Enabled = false, Color = Color3.fromRGB(255, 0, 0), Transparency = 0.7 },
-    Player    = { Enabled = false, Color = Color3.new(1,1,1), Transparency = 0.5 }
+    Player    = { Enabled = false, Color = Color3.new(1,1,1), Transparency = 0.7 },
+    NPC       = { Enabled = false, Color = Color3.fromRGB(255, 165, 0), Transparency = 0.7 }
 }
 
-local INTERACTIVE_FOLDER = Workspace:WaitForChild("GameSystem"):WaitForChild("InteractiveItem")
-local LOOT_FOLDER        = Workspace:WaitForChild("GameSystem"):WaitForChild("Loots"):WaitForChild("World")
-local MONSTER_FOLDER     = Workspace:WaitForChild("GameSystem"):WaitForChild("Monsters")
+
+
+local INTERACTIVE_FOLDER = workspace:WaitForChild("GameSystem"):WaitForChild("InteractiveItem")
+local LOOT_FOLDER        = workspace:WaitForChild("GameSystem"):WaitForChild("Loots"):WaitForChild("World")
+local MONSTER_FOLDER     = workspace:WaitForChild("GameSystem"):WaitForChild("Monsters")
+local NPC_FOLDER         = workspace:WaitForChild("GameSystem"):WaitForChild("NPCModels")
 
 local TrackedObjects   = {}
 local TrackedLoot      = {}
 local TrackedMonsters  = {}
+local TrackedNPCs      = {}
 
 local function cleanName(name)
-    local prefix = name:match("^[^_%d]+")
-    if prefix then
-        prefix = prefix:gsub("%s+$", "")
-    end
-    return prefix
+    return name:match("^[^_%d]+"):gsub("%s+$", "")
 end
 
 local function getObjectType(name)
     local prefix = cleanName(name)
-    if not prefix then return nil end
     for objType,_ in pairs(ESP) do
-        if prefix:lower() == objType:lower() then
-            return objType
-        end
+        if prefix:lower() == objType:lower() then return objType end
     end
     return nil
+end
+
+local function getCleanNPCName(model)
+    local name = model.Name
+    name = name:match("^(.-)[_%d]") or name
+    name = name:gsub("^%s+", ""):gsub("%s+$", "")
+    return name ~= "" and name or "NPC"
 end
 
 local function createESP(model, fillColor, fillTrans, text)
@@ -118,81 +128,38 @@ local function removeESPVisuals(model)
     local hl = model:FindFirstChild("OBJ_ESP_HL")
     if hl then hl:Destroy() end
     local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-    if root and root:FindFirstChild("OBJ_ESP_BILLBOARD") then
-        root.OBJ_ESP_BILLBOARD:Destroy()
+    if root then
+        local bg = root:FindFirstChild("OBJ_ESP_BILLBOARD")
+        if bg then bg:Destroy() end
     end
 end
 
-local function trackInteractive(model)
-    if not model or not model:IsA("Model") then return end
-    local objType = getObjectType(model.Name)
-    if objType then
-        TrackedObjects[model] = objType
-        if not ESP[objType].Enabled then removeESPVisuals(model) end
-    end
-end
+local function trackInteractive(m) if m:IsA("Model") then local t = getObjectType(m.Name) if t then TrackedObjects[m] = t end end end
+local function untrackInteractive(m) TrackedObjects[m] = nil removeESPVisuals(m) end
+local function trackLoot(m) if m:IsA("Model") then TrackedLoot[m] = true end end
+local function untrackLoot(m) TrackedLoot[m] = nil removeESPVisuals(m) end
+local function trackMonster(m) if m:IsA("Model") then TrackedMonsters[m] = true end end
+local function untrackMonster(m) TrackedMonsters[m] = nil removeESPVisuals(m) end
+local function trackNPC(m) if m:IsA("Model") then TrackedNPCs[m] = true end end
+local function untrackNPC(m) TrackedNPCs[m] = nil removeESPVisuals(m) end
 
-local function untrackInteractive(model)
-    TrackedObjects[model] = nil
-    removeESPVisuals(model)
-end
+for _,v in ipairs(INTERACTIVE_FOLDER:GetChildren()) do trackInteractive(v) end
+for _,v in ipairs(LOOT_FOLDER:GetChildren()) do trackLoot(v) end
+for _,v in ipairs(MONSTER_FOLDER:GetChildren()) do trackMonster(v) end
+for _,v in ipairs(NPC_FOLDER:GetChildren()) do trackNPC(v) end
 
-local function trackLoot(model)
-    if model and model:IsA("Model") then
-        TrackedLoot[model] = true
-        if not ESP.Loot.Enabled then removeESPVisuals(model) end
-    end
-end
-local function untrackLoot(model) TrackedLoot[model] = nil removeESPVisuals(model) end
-
-local function trackMonster(model)
-    if model and model:IsA("Model") then
-        TrackedMonsters[model] = true
-        if not ESP.Monster.Enabled then removeESPVisuals(model) end
-    end
-end
-local function untrackMonster(model) TrackedMonsters[model] = nil removeESPVisuals(model) end
-
-for _, obj in ipairs(INTERACTIVE_FOLDER:GetChildren()) do trackInteractive(obj) end
-for _, obj in ipairs(LOOT_FOLDER:GetChildren()) do trackLoot(obj) end
-for _, obj in ipairs(MONSTER_FOLDER:GetChildren()) do trackMonster(obj) end
-
-INTERACTIVE_FOLDER.ChildAdded:Connect(function(obj) task.wait() trackInteractive(obj) end)
+INTERACTIVE_FOLDER.ChildAdded:Connect(trackInteractive)
 INTERACTIVE_FOLDER.ChildRemoved:Connect(untrackInteractive)
 LOOT_FOLDER.ChildAdded:Connect(trackLoot)
 LOOT_FOLDER.ChildRemoved:Connect(untrackLoot)
 MONSTER_FOLDER.ChildAdded:Connect(trackMonster)
 MONSTER_FOLDER.ChildRemoved:Connect(untrackMonster)
+NPC_FOLDER.ChildAdded:Connect(trackNPC)
+NPC_FOLDER.ChildRemoved:Connect(untrackNPC)
 
 local function toggleESP(name, enabled)
     ESP[name].Enabled = enabled
-    Library:Notify({
-        Title = name .. " ESP",
-        Description = enabled and "Enabled" or "Disabled",
-        Time = 4
-    })
-    -- remove visuals immediately if toggled off
-    if not enabled then
-        if name == "Player" then
-            for _, plr in pairs(Players:GetPlayers()) do
-                removeESPVisuals(plr.Character)
-            end
-        elseif name == "Monster" then
-            for model,_ in pairs(TrackedMonsters) do
-                removeESPVisuals(model)
-            end
-        elseif name == "Loot" then
-            for model,_ in pairs(TrackedLoot) do
-                removeESPVisuals(model)
-            end
-        else
-            for model,objType in pairs(TrackedObjects) do
-                if objType == name then
-                    removeESPVisuals(model)
-                end
-            end
-        end
-    end
+    Library:Notify({Title = name.." ESP", Description = enabled and "Enabled" or "Disabled", Duration = 3})
 end
 
 RunService.Heartbeat:Connect(function()
@@ -200,26 +167,18 @@ RunService.Heartbeat:Connect(function()
     local myPos = LP.Character.HumanoidRootPart.Position
 
     for model, objType in pairs(TrackedObjects) do
-        if not ESP[objType].Enabled then
-            removeESPVisuals(model)
-        elseif model and model.Parent then
+        if ESP[objType].Enabled and model and model.Parent then
             local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
             if root then
                 local dist = (root.Position - myPos).Magnitude
                 if dist <= MAX_DISTANCE then
-                    local FILL_COLOR = ESP[objType].Color
-                    local FILL_TRANS = ESP[objType].Transparency
                     local text = string.format("<font color='rgb(%d,%d,%d)'>%s</font>\n[%dm]",
-                        FILL_COLOR.R*255, FILL_COLOR.G*255, FILL_COLOR.B*255,
+                        ESP[objType].Color.R*255, ESP[objType].Color.G*255, ESP[objType].Color.B*255,
                         objType, math.floor(dist))
-                    createESP(model, FILL_COLOR, FILL_TRANS, text)
-                else
-                    removeESPVisuals(model)
-                end
+                    createESP(model, ESP[objType].Color, ESP[objType].Transparency, text)
+                else removeESPVisuals(model) end
             end
-        else
-            removeESPVisuals(model)
-        end
+        else removeESPVisuals(model) end
     end
 
     if ESP.Loot.Enabled then
@@ -229,24 +188,20 @@ RunService.Heartbeat:Connect(function()
                 if root then
                     local dist = (root.Position - myPos).Magnitude
                     if dist <= MAX_DISTANCE then
-                        local lootName, price = "Unknown", "0"
-                        local lootUI = model:FindFirstChild("Folder") and model.Folder:FindFirstChild("Interactable") and model.Folder.Interactable:FindFirstChild("LootUI")
-                        if lootUI and lootUI:FindFirstChild("Frame") then
-                            local frame = lootUI.Frame
-                            if frame:FindFirstChild("ItemName") then lootName = frame.ItemName.Text end
-                            if frame:FindFirstChild("Price") then price = frame.Price.Text end
+                        local name, price = "Unknown", ""
+                        local ui = model:FindFirstChild("Folder") and model.Folder:FindFirstChild("Interactable") and model.Folder.Interactable:FindFirstChild("LootUI")
+                        if ui and ui:FindFirstChild("Frame") then
+                            local f = ui.Frame
+                            if f:FindFirstChild("ItemName") then name = f.ItemName.Text end
+                            if f:FindFirstChild("Price") then price = f.Price.Text end
                         end
-                        if lootName == "Unknown" then lootName = "Money"; price = "" end
-                        local text = string.format("<font color='rgb(%d,%d,%d)'>%s\n%s</font>\n[%dm]",
-                            ESP.Loot.Color.R*255, ESP.Loot.Color.G*255, ESP.Loot.Color.B*255,
-                            lootName, price, math.floor(dist))
+                        if name == "Unknown" then name = "Money" end
+                        local text = string.format("<font color='rgb(0,255,0)'>%s\n%s</font>\n[%dm]", name, price, math.floor(dist))
                         createESP(model, ESP.Loot.Color, ESP.Loot.Transparency, text)
                     else removeESPVisuals(model) end
                 end
             else removeESPVisuals(model) end
         end
-    else
-        for model,_ in pairs(TrackedLoot) do removeESPVisuals(model) end
     end
 
     if ESP.Monster.Enabled then
@@ -254,37 +209,45 @@ RunService.Heartbeat:Connect(function()
             if model and model.Parent then
                 local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
                 if root then
-                    local dist = (root.Position - myPos).Magnitude
+                    local dist = math.floor((root.Position - myPos).Magnitude)
                     if dist <= MAX_DISTANCE then
-                        local text = string.format("<font color='rgb(%d,%d,%d)'>%s</font>\n[%dm]",
-                            ESP.Monster.Color.R*255, ESP.Monster.Color.G*255, ESP.Monster.Color.B*255,
-                            "Monster", math.floor(dist))
+                        local text = string.format("<font color='rgb(255,0,0)'>Monster</font>\n[%dm]", dist)
                         createESP(model, ESP.Monster.Color, ESP.Monster.Transparency, text)
                     else removeESPVisuals(model) end
                 end
             else removeESPVisuals(model) end
         end
-    else
-        for model,_ in pairs(TrackedMonsters) do removeESPVisuals(model) end
+    end
+
+    if ESP.NPC.Enabled then
+        for model,_ in pairs(TrackedNPCs) do
+            if model and model.Parent then
+                local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+                if root then
+                    local dist = math.floor((root.Position - myPos).Magnitude)
+                    if dist <= MAX_DISTANCE then
+                        local cleanName = getCleanNPCName(model)
+                        local text = string.format("<font color='rgb(255,165,0)'>%s</font>\n[%dm]", cleanName, dist)
+                        createESP(model, ESP.NPC.Color, ESP.NPC.Transparency, text)
+                    else removeESPVisuals(model) end
+                end
+            else removeESPVisuals(model) end
+        end
     end
 
     if ESP.Player.Enabled then
         for _, plr in pairs(Players:GetPlayers()) do
             if plr ~= LP and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = plr.Character.HumanoidRootPart
-                local dist = math.floor((hrp.Position - myPos).Magnitude)
+                local dist = math.floor((plr.Character.HumanoidRootPart.Position - myPos).Magnitude)
                 if dist <= MAX_DISTANCE then
                     local text = string.format("<font color='rgb(255,255,255)'>%s\n[Player]</font>\n[%dm]", plr.DisplayName, dist)
                     createESP(plr.Character, ESP.Player.Color, ESP.Player.Transparency, text)
                 else removeESPVisuals(plr.Character) end
             end
         end
-    else
-        for _, plr in pairs(Players:GetPlayers()) do
-            removeESPVisuals(plr.Character)
-        end
     end
 end)
+
 
 --================================================================--
 -- ANTI TRAP SYSTEM 
@@ -337,82 +300,95 @@ end
 --================================================================--
 -- AUTO LOOT SYSTEM 
 --================================================================--
+
+
+local AutoPickEnabled = false
 local AutoOpenEnabled = false
-local AutoPickItemEnabled = false
-local AutoPickGearEnabled = false
+local AutoGearEnabled = false
+local PickLoop
+local OpenConnection
+local GearLoop
 
-local RunService = game:GetService("RunService")
-local LP = game.Players.LocalPlayer
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TEvent = require(ReplicatedStorage.Shared.Core.TEvent)
+local BLOCKED_ITEMS = {"Flashlight","Bandage","Box","Bloxy Cola","Hourglass","Revive Syringe","Baseball Bat","Teleporter","Z-Ray Gun","Double Barrel"}
+local BLOCKED_SET = {}
+for _,v in BLOCKED_ITEMS do BLOCKED_SET[v:lower()] = true end
 
-local blacklistItems = {
-    ["Flashlight"] = true,
-    ["Bandage"] = true,
-    ["Box"] = true,
-    ["Bloxy Cola"] = true,
-    ["Hourglass"] = true,
-    ["Revive Syringe"] = true,
-    ["Baseball Bat"] = true,
-    ["Teleporter"] = true,
-    ["Z-Ray Gun"] = true,
-    ["Double Barrel"] = true,
-}
+local GEAR_ONLY = {"Flashlight","Bandage","Box","Bloxy Cola","Hourglass","Revive Syringe","Baseball Bat","Teleporter","Z-Ray Gun","Double Barrel"}
+local GEAR_SET = {}
+for _,v in GEAR_ONLY do GEAR_SET[v:lower()] = true end
 
--- single heartbeat for all auto functions
-RunService.Heartbeat:Connect(function()
-    local chr = LP.Character or LP.CharacterAdded:Wait()
-    local hrp = chr:WaitForChild("HumanoidRootPart")
+local function fireInteract(obj,force)
+	TEvent.FireRemote("Interactable",obj,force==true)
+end
 
-    if AutoOpenEnabled then
-        for _, obj in pairs(workspace.GameSystem.InteractiveItem:GetDescendants()) do
-            if obj:HasTag("Interactable") and obj:GetAttribute("en") then
-                local dst = obj:GetAttribute("sz") or 20
-                local prt = obj:IsA("Model") and obj.PrimaryPart or obj:IsA("BasePart") and obj
-                if prt and (hrp.Position - prt.Position).Magnitude <= dst then
-                    TEvent.FireRemote("Interactable", obj)
-                end
-            end
-        end
-    end
+local function isBlocked(obj)
+	local lbl = obj:FindFirstChild("LootUI",true)
+	if lbl then lbl = lbl:FindFirstChild("Frame",true) end
+	if lbl then lbl = lbl:FindFirstChild("ItemName") end
+	return lbl and BLOCKED_SET[lbl.Text:lower()] or false
+end
 
-    if AutoPickItemEnabled or AutoPickGearEnabled then
-        for _, obj in pairs(workspace.GameSystem.Loots.World:GetDescendants()) do
-            if obj:HasTag("Interactable") and obj:GetAttribute("en") then
-                local prt = obj:IsA("Model") and obj.PrimaryPart or obj:IsA("BasePart") and obj
-                if prt and (hrp.Position - prt.Position).Magnitude <= (obj:GetAttribute("sz") or 20) then
-                    local lootName = nil
-                    local lootUI = obj:FindFirstChild("Folder") and obj.Folder:FindFirstChild("Interactable") and obj.Folder.Interactable:FindFirstChild("LootUI")
-                    if lootUI and lootUI:FindFirstChild("Frame") and lootUI.Frame:FindFirstChild("ItemName") then
-                        lootName = lootUI.Frame.ItemName.Text
-                    end
+local function isGear(obj)
+	local lbl = obj:FindFirstChild("LootUI",true)
+	if lbl then lbl = lbl:FindFirstChild("Frame",true) end
+	if lbl then lbl = lbl:FindFirstChild("ItemName") end
+	return lbl and GEAR_SET[lbl.Text:lower()] or false
+end
 
-                    if AutoPickItemEnabled and lootName and not blacklistItems[lootName] then
-                        TEvent.FireRemote("Interactable", obj)
-                    elseif AutoPickGearEnabled and lootName and blacklistItems[lootName] then
-                        TEvent.FireRemote("Interactable", obj)
-                    end
-                end
-            end
-        end
-    end
+local function toggleAutoPick(state)
+	AutoPickEnabled = state
+	if PickLoop then task.cancel(PickLoop) PickLoop = nil end
+	if state then
+		PickLoop = task.spawn(function()
+			while AutoPickEnabled do
+				for _,obj in LootsWorld:GetDescendants() do
+					if obj:HasTag("Interactable") and obj:GetAttribute("en") and not isBlocked(obj) then
+						fireInteract(obj,true)
+					end
+				end
+				task.wait(0.15)
+			end
+		end)
+	end
+end
+
+local function toggleAutoOpen(state)
+	AutoOpenEnabled = state
+	if OpenConnection then OpenConnection:Disconnect() OpenConnection = nil end
+	if state then
+		for _,obj in InteractiveItem:GetDescendants() do
+			if obj:HasTag("Interactable") then task.defer(fireInteract,obj,true) end
+		end
+		OpenConnection = InteractiveItem.DescendantAdded:Connect(function(obj)
+			if obj:HasTag("Interactable") then task.defer(fireInteract,obj,true) end
+		end)
+	end
+end
+
+local function toggleAutoGear(state)
+	AutoGearEnabled = state
+	if GearLoop then task.cancel(GearLoop) GearLoop = nil end
+	if state then
+		GearLoop = task.spawn(function()
+			while AutoGearEnabled do
+				for _,obj in LootsWorld:GetDescendants() do
+					if obj:HasTag("Interactable") and obj:GetAttribute("en") and isGear(obj) then
+						fireInteract(obj,true)
+					end
+				end
+				task.wait(0.15)
+			end
+		end)
+	end
+end
+
+local oldFire
+oldFire = hookfunction(TEvent.FireRemote,function(name,obj,forced)
+	if name=="Interactable" and (LootsWorld:IsAncestorOf(obj) or InteractiveItem:IsAncestorOf(obj)) then
+		return oldFire(name,obj,true)
+	end
+	return oldFire(name,obj,forced)
 end)
-
--- toggles
-local function toggleAutoOpen(value)
-    AutoOpenEnabled = value
-    Library:Notify({Title = "Auto Open", Description = value and "Enabled" or "Disabled", Time = 3})
-end
-
-local function toggleAutoPickItem(value)
-    AutoPickItemEnabled = value
-    Library:Notify({Title = "Auto Pick Up (Item)", Description = value and "Enabled" or "Disabled", Time = 3})
-end
-
-local function toggleAutoPickGear(value)
-    AutoPickGearEnabled = value
-    Library:Notify({Title = "Auto Pick Up (Gear)", Description = value and "Enabled" or "Disabled", Time = 3})
-end
 
 
 
@@ -422,107 +398,100 @@ end
 -- AUTO FARM SYSTEM 
 --================================================================--
 local AutoLootTPEnabled = false
-local tpConnection = nil
-local visitedInteractive = {}
-local visitedLoot = {}
+local FarmLoop = nil
 
 local BLACKLIST = {
-    ["Flashlight"]=true, ["Bandage"]=true, ["Box"]=true, ["Bloxy Cola"]=true,
-    ["Hourglass"]=true, ["Revive Syringe"]=true, ["Baseball Bat"]=true,
-    ["Teleporter"]=true, ["Z-Ray Gun"]=true, ["Double Barrel"]=true,
-    ["Cash"]=true, ["Unknown"]=true
+	["Flashlight"]=true,["Bandage"]=true,["Box"]=true,["Bloxy Cola"]=true,
+	["Hourglass"]=true,["Revive Syringe"]=true,["Baseball Bat"]=true,
+	["Teleporter"]=true,["Z-Ray Gun"]=true,["Double Barrel"]=true,
+	["Cash"]=true,["Unknown"]=true
 }
 
-local function getRandomPart(obj)
-    if obj:IsA("Model") then
-        return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-    elseif obj:IsA("BasePart") then
-        return obj
-    end
-end
-
-local function teleportTo(target)
-    if not target then return end
-    local targetPart = getRandomPart(target)
-    if not targetPart then return end
-    local char = LP.Character or LP.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    hrp.CFrame = targetPart.CFrame + Vector3.new(0,2,0)
-end
+local LP = game.Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
 local function teleportToElevator()
-    local targetPart = workspace["\231\148\181\230\162\175"].Left4.DoorController.DT
-    local char = LP.Character or LP.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    hrp.CFrame = targetPart.CFrame + Vector3.new(0,2,0)
+	pcall(function()
+		local elev = workspace:FindFirstChild("电梯")
+		if elev and elev:FindFirstChild("Left4") then
+			local target = elev.Left4.DoorController.DT
+			local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+			if hrp and target then
+				hrp.CFrame = target.CFrame + Vector3.new(0,5,0)
+			end
+		end
+	end)
 end
 
 local function getValidLoot()
-    local lootFolder = workspace.GameSystem.Loots.World:GetChildren()
-    local validLoot = {}
-    for _, obj in ipairs(lootFolder) do
-        local lootName = obj:FindFirstChild("Folder") and obj.Folder:FindFirstChild("Interactable") and obj.Folder.Interactable:FindFirstChild("LootUI") and obj.Folder.Interactable.LootUI.Frame.ItemName
-        if lootName and not BLACKLIST[lootName.Text] then
-            table.insert(validLoot, obj)
-        end
-    end
-    return validLoot
+	local loot = {}
+	for _, obj in workspace.GameSystem.Loots.World:GetChildren() do
+		local interact = obj:FindFirstChild("Folder", true) and obj.Folder:FindFirstChild("Interactable", true)
+		local itemName = interact and interact:FindFirstChild("LootUI", true) 
+			and interact.LootUI:FindFirstChild("Frame", true) 
+			and interact.LootUI.Frame:FindFirstChild("ItemName")
+		if itemName and not BLACKLIST[itemName.Text] then
+			local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+			if part then table.insert(loot, part) end
+		end
+	end
+	return loot
 end
 
-local function autoLootTP()
-    while AutoLootTPEnabled do
-        visitedInteractive = {}
-        local interactFolder = workspace.GameSystem.InteractiveItem:GetChildren()
-        for _, obj in ipairs(interactFolder) do
-            if not visitedInteractive[obj] then
-                teleportTo(obj)
-                visitedInteractive[obj] = true
-                task.wait(0.1)
-            end
-        end
+local function startFarming()
+	if FarmLoop then return end
+	FarmLoop = task.spawn(function()
+		while AutoLootTPEnabled do
+			local lootList = getValidLoot()
+			if #lootList == 0 then
+				task.wait(1)
+				continue
+			end
 
-        visitedLoot = {}
-        local validLoot = getValidLoot()
-        for _, obj in ipairs(validLoot) do
-            if not visitedLoot[obj] then
-                teleportTo(obj)
-                visitedLoot[obj] = true
-                task.wait(0.2)
-            end
-        end
+			local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+			if hum then hum.PlatformStand = true end
 
-        task.wait(1)
-        teleportToElevator()
-        task.wait(2)
+			for i = 1, math.min(4, #lootList) do
+				if not AutoLootTPEnabled then break end
+				local target = lootList[i]
+				if target and target.Parent and LP.Character then
+					local hrp = LP.Character.HumanoidRootPart
+					local pos = target.Position + Vector3.new(0, 8, 0)
+					hrp.CFrame = CFrame.new(pos, target.Position)
+					hrp.AssemblyLinearVelocity = Vector3.zero
+					hrp.AssemblyAngularVelocity = Vector3.zero
+				end
+				task.wait(0.1)
+			end
 
-        -- Instead of breaking, keep waiting and checking for new loot
-        while AutoLootTPEnabled and #getValidLoot() == 0 do
-            task.wait(1) -- wait until new loot spawns
-        end
-    end
+			if hum then hum.PlatformStand = false end
+			teleportToElevator()
+			task.wait(1.5)
+		end
+		FarmLoop = nil
+	end)
 end
 
-local function toggleAutoLootTP(value)
-    AutoLootTPEnabled = value
+local function toggleAutoLootTP(state)
+	AutoLootTPEnabled = state
 
-    if tpConnection then
-        tpConnection:Disconnect()
-        tpConnection = nil
-    end
+	if not state then
+		if FarmLoop then task.cancel(FarmLoop) FarmLoop = nil end
+		pcall(function()
+			local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+			if hum then hum.PlatformStand = false end
+		end)
+		return
+	end
 
-    if AutoLootTPEnabled then
-        tpConnection = RunService.Heartbeat:Connect(function()
-            tpConnection:Disconnect()
-            task.spawn(autoLootTP)
-        end)
-    end
-
-    Library:Notify({
-        Title = "Auto Farm",
-        Description = value and "Enabled" or "Disabled",
-        Time = 3
-    })
+	RunService.Heartbeat:Connect(function()
+		if not AutoLootTPEnabled then return end
+		if #getValidLoot() > 0 and not FarmLoop then
+			startFarming()
+		end
+	end)
 end
+
 
 --================================================================--
 -- SPEED WALK
@@ -553,6 +522,43 @@ startSpeedLock()
 LP.CharacterAdded:Connect(function()
 	task.wait(0.2)
 	applySpeed()
+end)
+
+
+--================================================================--
+-- AUTO RESCUE NPC SYSTEM 
+--================================================================--
+local AutoRescueNPCEnabled = false
+
+local function TryFireNPC(obj)
+	if not obj or not AutoRescueNPCEnabled then return end
+	
+	local model = obj:FindFirstAncestorWhichIsA("Model") or (obj:IsA("Model") and obj)
+	if not model then return end
+	
+	local humanoid = model:FindFirstChildWhichIsA("Humanoid")
+	if not humanoid then return end
+	
+	if model:HasTag("NPC") and model:GetAttribute("en") then
+		TEvent.FireRemote("NPCDetected", model)
+	end
+end
+
+local function toggleAutoRescueNPC(state)
+	AutoRescueNPCEnabled = state
+	
+	if state then
+		for _, obj in NPCModels:GetDescendants() do
+			task.defer(TryFireNPC, obj)
+		end
+	end
+end
+
+local connection
+connection = NPCModels.DescendantAdded:Connect(function(obj)
+	if AutoRescueNPCEnabled then
+		task.defer(TryFireNPC, obj)
+	end
 end)
 --================================================================--
 -- GUI: CREATE WINDOW
@@ -609,29 +615,45 @@ local ESPRight = MainTab:AddRightGroupbox("ESP", "eye")
 --================================================================--
 -- AUTOMATION 
 --================================================================--
-AutoLeft:AddToggle("AutoLootTP", {
-    Text = "Auto Farm",
-    Default = false,
-    Callback = toggleAutoLootTP
+
+
+AutoLeft:AddToggle("AutoLootTP",{
+	Text = "Auto Farm",
+	Default = false,
+	Callback = toggleAutoLootTP
 })
 
-AutoLeft:AddToggle("AutoOpen", {
-    Text = "Auto Open",
-    Default = false,
-    Callback = toggleAutoOpen
+AutoLeft:AddToggle("AutoOpenItems",{
+	Text = "Auto Open (Crate + More)",
+	Default = false,
+	Callback = toggleAutoOpen
 })
 
-AutoLeft:AddToggle("AutoPickItem", {
-    Text = "Auto Pick Up (Item)",
-    Default = false,
-    Callback = toggleAutoPickItem
+AutoLeft:AddToggle("AutoPickItem",{
+	Text = "Auto Loot (Item)",
+	Default = false,
+	Callback = toggleAutoPick
 })
 
-AutoLeft:AddToggle("AutoPickGear", {
-    Text = "Auto Pick Up (Gear)",
-    Default = false,
-    Callback = toggleAutoPickGear
+AutoLeft:AddToggle("AutoPickGear",{
+	Text = "Auto Loot (Gear)",
+	Default = false,
+	Callback = toggleAutoGear
 })
+
+
+
+
+
+
+
+
+AutoLeft:AddToggle("AutoRescueNPC", {
+	Text = "Auto Rescue NPC",
+	Default = false,
+	Callback = toggleAutoRescueNPC
+})
+
 --================================================================--
 -- PLAYER
 --================================================================--
@@ -675,52 +697,46 @@ TeleportRight:AddButton({
 -- ESP
 --================================================================--
 
-ESPRight:AddToggle("PlayerESP", {
-    Text = "Player ESP",
-    Default = false,
-    Callback = function(Value)
-        toggleESP("Player", Value)
-    end,
-})
-
-ESPRight:AddToggle("MonsterESP", {
-    Text = "Monster ESP",
-    Default = false,
-    Callback = function(Value)
-        toggleESP("Monster", Value)
-    end,
-})
-
-ESPRight:AddToggle("LootESP", {
-    Text = "Loot ESP",
-    Default = false,
-    Callback = function(Value)
-        toggleESP("Loot", Value)
-    end,
-})
-
-ESPRight:AddToggle("CrateESP", {
+ESPRight:AddToggle("Crate_ESP", {
     Text = "Crate ESP",
     Default = false,
-    Callback = function(Value)
-        toggleESP("Crate", Value)
-    end,
+    Callback = function(v) toggleESP("Crate", v) end
 })
 
-ESPRight:AddToggle("CabinetESP", {
+ESPRight:AddToggle("Cabinet_ESP", {
     Text = "Cabinet ESP",
     Default = false,
-    Callback = function(Value)
-        toggleESP("Cabinet", Value)
-    end,
+    Callback = function(v) toggleESP("Cabinet", v) end
 })
 
-ESPRight:AddToggle("OilBucketESP", {
+ESPRight:AddToggle("OilBucket_ESP", {
     Text = "Oil Bucket ESP",
     Default = false,
-    Callback = function(Value)
-        toggleESP("OilBucket", Value)
-    end,
+    Callback = function(v) toggleESP("OilBucket", v) end
+})
+
+ESPRight:AddToggle("Loot_ESP", {
+    Text = "Loot ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Loot", v) end
+})
+
+ESPRight:AddToggle("Monster_ESP", {
+    Text = "Monster ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Monster", v) end
+})
+
+ESPRight:AddToggle("Player_ESP", {
+    Text = "Player ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Player", v) end
+})
+
+ESPRight:AddToggle("NPC_ESP", {
+    Text = "NPC ESP",
+    Default = false,
+    Callback = function(v) toggleESP("NPC", v) end
 })
 
 --================================================================--
