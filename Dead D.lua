@@ -743,7 +743,47 @@ TeleportRight:AddButton({
 -- ESP
 --================================================================--
 
+ESPRight:AddToggle("Crate_ESP", {
+    Text = "Crate ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Crate", v) end
+})
 
+ESPRight:AddToggle("Cabinet_ESP", {
+    Text = "Cabinet ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Cabinet", v) end
+})
+
+ESPRight:AddToggle("OilBucket_ESP", {
+    Text = "Oil Bucket ESP",
+    Default = false,
+    Callback = function(v) toggleESP("OilBucket", v) end
+})
+
+ESPRight:AddToggle("Loot_ESP", {
+    Text = "Loot ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Loot", v) end
+})
+
+ESPRight:AddToggle("Monster_ESP", {
+    Text = "Monster ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Monster", v) end
+})
+
+ESPRight:AddToggle("Player_ESP", {
+    Text = "Player ESP",
+    Default = false,
+    Callback = function(v) toggleESP("Player", v) end
+})
+
+ESPRight:AddToggle("NPC_ESP", {
+    Text = "NPC ESP",
+    Default = false,
+    Callback = function(v) toggleESP("NPC", v) end
+})
 
 --================================================================--
 -- SETTINGS TAB
