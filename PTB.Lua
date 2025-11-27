@@ -10,11 +10,11 @@ print("------------------------------------------------------------------")
 --================================================================--
 -- LOAD LIBRARY (Vgxmod UI)
 --================================================================--
-local repo = "https://raw.githubusercontent.com/UnknownVg/CUSTOM-LIB/refs/heads/main/"
+local repo = "https://raw.githubusercontent.com/Devilx89/CUSTOM-1/refs/heads/main/"
 local success, err = pcall(function()
-    Library      = loadstring(game:HttpGet(repo .. "Library.lua"))()
+    Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
     ThemeManager = loadstring(game:HttpGet(repo .. "Add-ons/ThemeManager.lua"))()
-    SaveManager  = loadstring(game:HttpGet(repo .. "Add-ons/SaveManager.lua"))()
+    SaveManager = loadstring(game:HttpGet(repo .. "Add-ons/SaveManager.lua"))()
 end)
 
 if not success then
@@ -24,6 +24,7 @@ end
 
 local Options = Library.Options
 local Toggles = Library.Toggles
+
 --================================================================--
 -- CORE SERVICES
 --================================================================--
@@ -384,36 +385,6 @@ local function enableShiftLockMobile()
 end
 
 --================================================================--
--- PLAYER MOVEMENT: Speed boost logic (keeps original values/behavior)
---================================================================--
-local player = LocalPlayer
-local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-local walkEnabled = false
-local walkConnection
-local normalSpeed = 25
-local sliderValue = 3
-
-local function updateSpeed()
-    if not humanoid or not walkEnabled then return end
-    local hasBomb = player.Character and player.Character:FindFirstChild("Bomb")
-    if hasBomb then
-        humanoid.WalkSpeed = 35
-    else
-        humanoid.WalkSpeed = normalSpeed + sliderValue
-    end
-end
-
-player.CharacterAdded:Connect(function()
-    task.wait(1)
-    humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    if walkEnabled then
-        walkConnection = RunService.Heartbeat:Connect(updateSpeed)
-    else
-        if humanoid then humanoid.WalkSpeed = normalSpeed end
-    end
-end)
-
---================================================================--
 -- GUI: CREATE WINDOW (keep your original Info tab unchanged)
 --================================================================--
 local Window = Library:CreateWindow({
@@ -596,36 +567,6 @@ local PlayerLeft = PlayerTab:AddLeftGroupbox("Movement Control")
 local PlayerRight = PlayerTab:AddRightGroupbox("Animation Control")
 
 PlayerLeft:AddLabel("Movement Like a Pro")
-
-PlayerLeft:AddToggle("WalkToggle", {
-    Text = "Speed Boost",
-    Default = false,
-    Callback = function(Value)
-        walkEnabled = Value
-        if Value then
-            walkConnection = RunService.Heartbeat:Connect(updateSpeed)
-            Library:Notify({ Title = "Speed Boost", Description = "Enabled", Time = 2 })
-        else
-            if walkConnection then pcall(function() walkConnection:Disconnect() end) end
-            walkConnection = nil
-            if humanoid then humanoid.WalkSpeed = normalSpeed end
-            Library:Notify({ Title = "Speed Boost", Description = "Disabled", Time = 2 })
-        end
-    end,
-})
-
-PlayerLeft:AddSlider("WalkSpeedSlider", {
-    Text = "Speed Level",
-    Default = 3,
-    Min = 1,
-    Max = 3,
-    Rounding = 0,
-    Callback = function(Value)
-        sliderValue = Value
-        if walkEnabled and humanoid then updateSpeed() end
-        Library:Notify({ Title = "Speed Level", Description = "Level " .. tostring(Value), Time = 1 })
-    end,
-})
 
 PlayerRight:AddButton({
     Text = "Animation",
