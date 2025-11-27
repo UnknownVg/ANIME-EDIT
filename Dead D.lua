@@ -39,7 +39,9 @@ local TEvent = require(ReplicatedStorage.Shared.Core.TEvent)
 
 local LootsWorld = workspace.GameSystem.Loots.World
 local InteractiveItem = workspace.GameSystem.InteractiveItem
-local NPCModels = workspace.GameSystem.NPCModels
+
+
+
 --================================================================--
 -- ESP SYSTEM 
 --================================================================--
@@ -606,6 +608,52 @@ end)
 -- AUTO RESCUE NPC SYSTEM 
 --================================================================--
 
+
+
+local NPC_FOLDER = workspace.GameSystem.NPCModels
+
+local AutoInteractNPC = false
+
+local function InteractNPC(obj)
+    if obj:HasTag("Interactable") and obj:GetAttribute("en") then
+        TEvent.FireRemote("Interactable", obj)
+    end
+end
+
+NPC_FOLDER.DescendantAdded:Connect(function(obj)
+    if AutoInteractNPC then
+        task.defer(function()
+            InteractNPC(obj)
+        end)
+    end
+end)
+
+local function InteractAllNPCs()
+    if not AutoInteractNPC then return end
+    for _, obj in NPC_FOLDER:GetDescendants() do
+        task.defer(function()
+            InteractNPC(obj)
+        end)
+    end
+end
+
+local function toggleAutoNPC(value)
+    AutoInteractNPC = value
+    if value then
+        InteractAllNPCs()
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
 --================================================================--
 -- GUI: CREATE WINDOW
 --================================================================--
@@ -687,19 +735,15 @@ AutoLeft:AddToggle("AutoPickGear",{
 	Callback = toggleAutoGear
 })
 
-
-
-
-
-
-
---[[
-AutoLeft:AddToggle("AutoRescueNPC", {
-	Text = "Auto Rescue NPC",
-	Default = false,
-	Callback = toggleAutoRescueNPC
+AutoLeft:AddToggle("AutoInteractNPC", {
+    Text = "Auto Rescue (NPC)",
+    Default = false,
+    Callback = toggleAutoNPC
 })
-]]
+
+
+
+
 --================================================================--
 -- PLAYER
 --================================================================--
