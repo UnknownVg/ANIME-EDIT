@@ -35,11 +35,12 @@ local RunService = game:GetService("RunService")
 local LP         = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remote_Event = ReplicatedStorage:WaitForChild("Remote_Event")
-
+local remote = ReplicatedStorage:WaitForChild("Remote_Event")
 local TEvent = require(ReplicatedStorage.Shared.Core.TEvent)
 
 local LootsWorld = workspace.GameSystem.Loots.World
 local InteractiveItem = workspace.GameSystem.InteractiveItem
+
 
 
 
@@ -667,36 +668,40 @@ end
 -- GOD MOD SYSTEM 
 --================================================================--
 
-local args = {
-    [1] = "\146\12\147\195\199\2\147\203\192s\128\8\128\0\0\0\203@tN'\160\0\0\0\203@z&\127\224\0\0\0\203By\173\26\8\183P\0"
-}
 
-local LoopEnabled = false
-local LoopTask = nil
+local latestArgs = nil
+local running = false
+local loopThread = nil
+
+local oldFire
+oldFire = hookfunction(remote.FireServer, function(self, ...)
+    latestArgs = {...}
+    return oldFire(self, ...)
+end)
+
+if not latestArgs then
+    latestArgs = { "\146\12\147\195\199\2\147\203\192sl\218\0\0\0\0\203@tM\181\224\0\0\0\203@z-\240\160\0\0\0\203By\173\29P\151p\0" }
+end
 
 local function toggleLoop(state)
-    LoopEnabled = state
+    running = state
 
-    if LoopTask then
-        task.cancel(LoopTask)
-        LoopTask = nil
+    if loopThread then
+        task.cancel(loopThread)
+        loopThread = nil
     end
 
     if state then
-        LoopTask = task.spawn(function()
-            while LoopEnabled do
-                task.wait(2)
-                local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remote_Event")
-                if remote then
-                    remote:FireServer(unpack(args))
+        loopThread = task.spawn(function()
+            while running do
+                task.wait(0.25)
+                if latestArgs then
+                    remote:FireServer(unpack(latestArgs))
                 end
             end
         end)
     end
 end
-
-
-
 
 --================================================================--
 -- GUI: CREATE WINDOW
@@ -791,6 +796,7 @@ AutoLeft:AddToggle("AutoInteractNPC", {
 --================================================================--
 -- PLAYER
 --================================================================--
+
 
 PlayerLeft:AddToggle("GodModeToggle", {
     Text = "Always (SafeZone)",
