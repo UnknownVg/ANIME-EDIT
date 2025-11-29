@@ -34,6 +34,7 @@ local Workspace  = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local LP         = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remote_Event = ReplicatedStorage:WaitForChild("Remote_Event")
 
 local TEvent = require(ReplicatedStorage.Shared.Core.TEvent)
 
@@ -388,87 +389,93 @@ local PickLoop
 local OpenConnection
 local GearLoop
 
-local BLOCKED_ITEMS = {"Flashlight","Bandage","Box","Bloxy Cola","Hourglass","Revive Syringe","Baseball Bat","Teleporter","Z-Ray Gun","Double Barrel"}
+local BLOCKED_ITEMS = {"Flashlight","Bandage","Box","Bloxy Cola","Hourglass","Revive Syringe","Baseball Bat","Teleporter","Z-Ray Gun","Double Barrel","Random Teleporter","Stun Grenade","Bat","Baseball"}
+
+local GEAR_ONLY = {"Flashlight","Bandage","Box","Bloxy Cola","Hourglass","Revive Syringe","Baseball Bat","Teleporter","Z-Ray Gun","Double Barrel","Random Teleporter","Stun Grenade","Bat","Baseball"}
+
 local BLOCKED_SET = {}
-for _,v in BLOCKED_ITEMS do BLOCKED_SET[v:lower()] = true end
+for _,v in ipairs(BLOCKED_ITEMS) do BLOCKED_SET[v:lower()] = true end
 
-local GEAR_ONLY = {"Flashlight","Bandage","Box","Bloxy Cola","Hourglass","Revive Syringe","Baseball Bat","Teleporter","Z-Ray Gun","Double Barrel"}
 local GEAR_SET = {}
-for _,v in GEAR_ONLY do GEAR_SET[v:lower()] = true end
+for _,v in ipairs(GEAR_ONLY) do GEAR_SET[v:lower()] = true end
 
-local function fireInteract(obj,force)
-	TEvent.FireRemote("Interactable",obj,force==true)
+local function fireInteract(obj, force)
+    if TEvent and TEvent.FireRemote then
+        TEvent.FireRemote("Interactable", obj, force == true)
+    end
 end
 
 local function isBlocked(obj)
-	local lbl = obj:FindFirstChild("LootUI",true)
-	if lbl then lbl = lbl:FindFirstChild("Frame",true) end
-	if lbl then lbl = lbl:FindFirstChild("ItemName") end
-	return lbl and BLOCKED_SET[lbl.Text:lower()] or false
+    local lootUI = obj:FindFirstChild("LootUI", true)
+    local itemName = if lootUI then lootUI:FindFirstChild("ItemName", true) else nil
+    
+    return itemName and BLOCKED_SET[itemName.Text:lower()] or false
 end
 
 local function isGear(obj)
-	local lbl = obj:FindFirstChild("LootUI",true)
-	if lbl then lbl = lbl:FindFirstChild("Frame",true) end
-	if lbl then lbl = lbl:FindFirstChild("ItemName") end
-	return lbl and GEAR_SET[lbl.Text:lower()] or false
+    local lootUI = obj:FindFirstChild("LootUI", true)
+    local itemName = if lootUI then lootUI:FindFirstChild("ItemName", true) else nil
+    
+    return itemName and GEAR_SET[itemName.Text:lower()] or false
 end
 
 local function toggleAutoPick(state)
-	AutoPickEnabled = state
-	if PickLoop then task.cancel(PickLoop) PickLoop = nil end
-	if state then
-		PickLoop = task.spawn(function()
-			while AutoPickEnabled do
-				for _,obj in LootsWorld:GetDescendants() do
-					if obj:HasTag("Interactable") and obj:GetAttribute("en") and not isBlocked(obj) then
-						fireInteract(obj,true)
-					end
-				end
-				task.wait(0.15)
-			end
-		end)
-	end
+    AutoPickEnabled = state
+    if PickLoop then task.cancel(PickLoop) PickLoop = nil end
+    
+    if state then
+        PickLoop = task.spawn(function()
+            while AutoPickEnabled do
+                if LootsWorld then
+                    for _, obj in ipairs(LootsWorld:GetDescendants()) do
+                        if obj:HasTag("Interactable") and obj:GetAttribute("en") and not isBlocked(obj) then
+                            fireInteract(obj, true)
+                        end
+                    end
+                end
+                task.wait(0.15)
+            end
+        end)
+    end
 end
 
 local function toggleAutoOpen(state)
-	AutoOpenEnabled = state
-	if OpenConnection then OpenConnection:Disconnect() OpenConnection = nil end
-	if state then
-		for _,obj in InteractiveItem:GetDescendants() do
-			if obj:HasTag("Interactable") then task.defer(fireInteract,obj,true) end
-		end
-		OpenConnection = InteractiveItem.DescendantAdded:Connect(function(obj)
-			if obj:HasTag("Interactable") then task.defer(fireInteract,obj,true) end
-		end)
-	end
+    AutoOpenEnabled = state
+    if OpenConnection then OpenConnection:Disconnect() OpenConnection = nil end
+    
+    if state and InteractiveItem then
+        for _, obj in ipairs(InteractiveItem:GetDescendants()) do
+            if obj:HasTag("Interactable") then 
+                task.defer(fireInteract, obj, true) 
+            end
+        end
+        OpenConnection = InteractiveItem.DescendantAdded:Connect(function(obj)
+            if obj:HasTag("Interactable") then 
+                task.defer(fireInteract, obj, true) 
+            end
+        end)
+    end
 end
 
 local function toggleAutoGear(state)
-	AutoGearEnabled = state
-	if GearLoop then task.cancel(GearLoop) GearLoop = nil end
-	if state then
-		GearLoop = task.spawn(function()
-			while AutoGearEnabled do
-				for _,obj in LootsWorld:GetDescendants() do
-					if obj:HasTag("Interactable") and obj:GetAttribute("en") and isGear(obj) then
-						fireInteract(obj,true)
-					end
-				end
-				task.wait(0.15)
-			end
-		end)
-	end
+    AutoGearEnabled = state
+    if GearLoop then task.cancel(GearLoop) GearLoop = nil end
+    
+    if state then
+        GearLoop = task.spawn(function()
+            while AutoGearEnabled do
+                if LootsWorld then
+                    for _, obj in ipairs(LootsWorld:GetDescendants()) do
+                        if obj:HasTag("Interactable") and obj:GetAttribute("en") and isGear(obj) then
+                            fireInteract(obj, true)
+                        end
+                    end
+                end
+                task.wait(0.15)
+            end
+        end)
+    end
 end
-
-local oldFire
-oldFire = hookfunction(TEvent.FireRemote,function(name,obj,forced)
-	if name=="Interactable" and (LootsWorld:IsAncestorOf(obj) or InteractiveItem:IsAncestorOf(obj)) then
-		return oldFire(name,obj,true)
-	end
-	return oldFire(name,obj,forced)
-end)
-
 
 
 
@@ -575,15 +582,19 @@ end
 --================================================================--
 -- SPEED WALK
 --================================================================--
+
+
+
 local WALK_SPEED = 18
 local WalkSpeedEnabled = false
 local speedConnection
 
-local function applySpeed()
-	if not LP.Character then return end
-	local hum = LP.Character:FindFirstChild("Humanoid")
-	if hum then
-		hum.WalkSpeed = WALK_SPEED
+local function setSpeed(speed)
+	if LP.Character then
+		local hum = LP.Character:FindFirstChild("Humanoid")
+		if hum then
+			hum.WalkSpeed = speed
+		end
 	end
 end
 
@@ -591,16 +602,16 @@ local function startSpeedLock()
 	if speedConnection then speedConnection:Disconnect() end
 	speedConnection = RunService.Heartbeat:Connect(function()
 		if WalkSpeedEnabled then
-			applySpeed()
+			setSpeed(WALK_SPEED)
 		end
 	end)
 end
 
-startSpeedLock()
-
 LP.CharacterAdded:Connect(function()
 	task.wait(0.2)
-	applySpeed()
+	if WalkSpeedEnabled then
+		setSpeed(WALK_SPEED)
+	end
 end)
 
 
@@ -651,6 +662,29 @@ end
 
 
 
+--================================================================--
+-- GOD MOD SYSTEM 
+--================================================================--
+local GodModeEnabled = false
+local GodLoop = nil
+
+local function toggleGodMode(state)
+    GodModeEnabled = state
+    
+    if GodLoop then
+        task.cancel(GodLoop)
+        GodLoop = nil
+    end
+    
+    if state then
+        GodLoop = task.spawn(function()
+            while GodModeEnabled do
+                Remote_Event:FireServer("\146\14\147\195\199\2\147\203\192si_\0\0\0\0\203@tNx \0\0\0\203@z9c\160\0\0\0\203By\172\206]\146P\0")
+                task.wait(1.5)
+            end
+        end)
+    end
+end
 
 
 
@@ -747,12 +781,31 @@ AutoLeft:AddToggle("AutoInteractNPC", {
 --================================================================--
 -- PLAYER
 --================================================================--
+
+PlayerLeft:AddToggle("GodModeToggle", {
+    Text = "Always (SafeZone)",
+    Default = false,
+    Callback = toggleGodMode
+})
+
+
+PlayerLeft:AddToggle("RemoveMonsterHitbox", {
+    Text = "Anti Trap (Monster)",
+    Default = false,
+    Callback = toggleRemoveHitbox
+})
+
 PlayerLeft:AddToggle("WalkSpeedToggle", {
 	Text = "Walk Speed",
 	Default = false,
 	Callback = function(Value)
 		WalkSpeedEnabled = Value
-		setSpeed(WALK_SPEED)
+		if WalkSpeedEnabled then
+			startSpeedLock()
+			setSpeed(WALK_SPEED)
+		else
+			setSpeed(16)
+		end
 	end,
 })
 
@@ -764,15 +817,14 @@ PlayerLeft:AddSlider("WalkSpeedSlider", {
 	Rounding = 1,
 	Callback = function(Value)
 		WALK_SPEED = Value
-		setSpeed(WALK_SPEED)
+		if WalkSpeedEnabled then
+			setSpeed(WALK_SPEED)
+		end
 	end,
 })
 
-PlayerLeft:AddToggle("RemoveMonsterHitbox", {
-    Text = "Anti Trap (Monster)",
-    Default = false,
-    Callback = toggleRemoveHitbox
-})
+
+
 
 --================================================================--
 -- TELEPORT 
