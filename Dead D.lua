@@ -666,26 +666,35 @@ end
 --================================================================--
 -- GOD MOD SYSTEM 
 --================================================================--
-local GodModeEnabled = false
-local GodLoop = nil
 
-local function toggleGodMode(state)
-    GodModeEnabled = state
-    
-    if GodLoop then
-        task.cancel(GodLoop)
-        GodLoop = nil
+local args = {
+    [1] = "\146\12\147\195\199\2\147\203\192s\128\8\128\0\0\0\203@tN'\160\0\0\0\203@z&\127\224\0\0\0\203By\173\26\8\183P\0"
+}
+
+local LoopEnabled = false
+local LoopTask = nil
+
+local function toggleLoop(state)
+    LoopEnabled = state
+
+    if LoopTask then
+        task.cancel(LoopTask)
+        LoopTask = nil
     end
-    
+
     if state then
-        GodLoop = task.spawn(function()
-            while GodModeEnabled do
-                Remote_Event:FireServer("\146\14\147\195\199\2\147\203\192si_\0\0\0\0\203@tNx \0\0\0\203@z9c\160\0\0\0\203By\172\206]\146P\0")
-                task.wait(1.5)
+        LoopTask = task.spawn(function()
+            while LoopEnabled do
+                task.wait(2)
+                local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remote_Event")
+                if remote then
+                    remote:FireServer(unpack(args))
+                end
             end
         end)
     end
 end
+
 
 
 
@@ -786,9 +795,8 @@ AutoLeft:AddToggle("AutoInteractNPC", {
 PlayerLeft:AddToggle("GodModeToggle", {
     Text = "Always (SafeZone)",
     Default = false,
-    Callback = toggleGodMode
+    Callback = toggleLoop
 })
-
 
 PlayerLeft:AddToggle("RemoveMonsterHitbox", {
     Text = "Anti Trap (Monster)",
