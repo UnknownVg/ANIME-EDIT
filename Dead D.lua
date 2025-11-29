@@ -490,7 +490,8 @@ local BLACKLIST = {
 	["Flashlight"]=true,["Bandage"]=true,["Box"]=true,["Bloxy Cola"]=true,
 	["Hourglass"]=true,["Revive Syringe"]=true,["Baseball Bat"]=true,
 	["Teleporter"]=true,["Z-Ray Gun"]=true,["Double Barrel"]=true,
-	["Cash"]=true,["Unknown"]=true
+	["Random Teleporter"]=true,["Stun Grenade"]=true,["Bat"]=true,
+	["Baseball"]=true
 }
 
 local LP = game.Players.LocalPlayer
