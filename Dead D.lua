@@ -703,6 +703,36 @@ local function toggleLoop(state)
     end
 end
 
+
+
+
+--================================================================--
+-- INFINITY STAMINA 
+--================================================================--
+local rns = game:GetService("RunService")
+local staminaDisabled = true
+local connections = {}
+
+local function toggleInfinityStamina(state)
+    staminaDisabled = state
+
+    if staminaDisabled then
+        for _, cnx in pairs(getconnections(rns.PreRender)) do
+            local src = debug.info(cnx.Function, "s")
+            if src:find("Stamina") then
+                cnx:Disable()
+                table.insert(connections, cnx)
+            end
+        end
+    else
+        for _, cnx in pairs(connections) do
+            pcall(function() cnx:Enable() end)
+        end
+        connections = {}
+    end
+end
+
+
 --================================================================--
 -- GUI: CREATE WINDOW
 --================================================================--
@@ -810,6 +840,12 @@ PlayerLeft:AddToggle("RemoveMonsterHitbox", {
     Callback = toggleRemoveHitbox
 })
 
+PlayerLeft:AddToggle("InfinityStamina", {
+    Text = "Infinity Stamina",
+    Default = true,
+    Callback = toggleInfinityStamina
+})
+
 PlayerLeft:AddToggle("WalkSpeedToggle", {
 	Text = "Walk Speed",
 	Default = false,
@@ -819,7 +855,7 @@ PlayerLeft:AddToggle("WalkSpeedToggle", {
 			startSpeedLock()
 			setSpeed(WALK_SPEED)
 		else
-			setSpeed(16)
+			setSpeed(18)
 		end
 	end,
 })
