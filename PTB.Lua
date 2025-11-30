@@ -321,7 +321,10 @@ end
 --================================================================--
 local function enableShiftLockMobile()
     local CoreGui = game:GetService("CoreGui")
-    
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local Player = Players.LocalPlayer
+
     local ShiftLockScreenGui = Instance.new("ScreenGui")
     ShiftLockScreenGui.Name = "Shiftlock (CoreGui)"
     ShiftLockScreenGui.Parent = CoreGui
@@ -337,7 +340,7 @@ local function enableShiftLockMobile()
     local MaxLength = 900000
     local EnabledOffset = CFrame.new(1.7, 0, 0)
     local DisabledOffset = CFrame.new(-1.7, 0, 0)
-    local ActiveConnection
+    local Active
 
     ShiftLockButton.BackgroundTransparency = 1
     ShiftLockButton.Position = UDim2.new(0.7, 0, 0.75, 0)
@@ -346,28 +349,37 @@ local function enableShiftLockMobile()
     ShiftLockButton.Image = States.Off
 
     ShiftLockButton.MouseButton1Click:Connect(function()
-        if not ActiveConnection then
-            ActiveConnection = RunService.RenderStepped:Connect(function()
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
-                    char.Humanoid.AutoRotate = false
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                        char.HumanoidRootPart.Position,
-                        char.HumanoidRootPart.Position + workspace.CurrentCamera.CFrame.LookVector * MaxLength
+        if not Active then
+            Active = RunService.RenderStepped:Connect(function()
+                if Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    Player.Character.Humanoid.AutoRotate = false
+                    ShiftLockButton.Image = States.On
+                    Player.Character.HumanoidRootPart.CFrame = CFrame.new(
+                        Player.Character.HumanoidRootPart.Position,
+                        Vector3.new(
+                            workspace.CurrentCamera.CFrame.LookVector.X * MaxLength,
+                            Player.Character.HumanoidRootPart.Position.Y,
+                            workspace.CurrentCamera.CFrame.LookVector.Z * MaxLength
+                        )
                     )
+                    workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame * EnabledOffset
+                    workspace.CurrentCamera.Focus = CFrame.fromMatrix(
+                        workspace.CurrentCamera.Focus.Position,
+                        workspace.CurrentCamera.CFrame.RightVector,
+                        workspace.CurrentCamera.CFrame.UpVector
+                    ) * EnabledOffset
                 end
             end)
-            ShiftLockButton.Image = States.On
         else
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("Humanoid") then
-                char.Humanoid.AutoRotate = true
-            end
-            if ActiveConnection then
-                pcall(function() ActiveConnection:Disconnect() end)
-                ActiveConnection = nil
+            if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+                Player.Character.Humanoid.AutoRotate = true
             end
             ShiftLockButton.Image = States.Off
+            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame * DisabledOffset
+            pcall(function()
+                Active:Disconnect()
+            end)
+            Active = nil
         end
     end)
 end
