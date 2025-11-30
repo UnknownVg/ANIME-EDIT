@@ -1,6 +1,6 @@
 --================================================================--
---                    VGXMOD HUB - REWORKED (VIOLENCE DISTRICT STYLE)
---        Cleaned structure: Hitbox + ESP Bomb + Tracer + Misc + Player
+--                    VGXMOD HUB 
+--        
 --================================================================--
 
 print("------------------------------------------------------------------")
@@ -12,14 +12,14 @@ print("------------------------------------------------------------------")
 --================================================================--
 local repo = "https://raw.githubusercontent.com/UnknownVg/CUSTOM-LIB/refs/heads/main/"
 local success, err = pcall(function()
-    Library      = loadstring(game:HttpGet(repo .. "Library.lua"))()
-    ThemeManager = loadstring(game:HttpGet(repo .. "Add-ons/ThemeManager.lua"))()
-    SaveManager  = loadstring(game:HttpGet(repo .. "Add-ons/SaveManager.lua"))()
+Library      = loadstring(game:HttpGet(repo .. "Library.lua"))()
+ThemeManager = loadstring(game:HttpGet(repo .. "Add-ons/ThemeManager.lua"))()
+SaveManager  = loadstring(game:HttpGet(repo .. "Add-ons/SaveManager.lua"))()
 end)
 
 if not success then
-    warn("Failed to load Vgxmod Hub libraries: " .. tostring(err))
-    return
+warn("Failed to load Vgxmod Hub libraries: " .. tostring(err))
+return
 end
 
 local Options = Library.Options
@@ -317,14 +317,11 @@ local function updateTracer()
 end
 
 --================================================================--
--- MISC UTIL: Shiftlock, Max View, Remove Explosion
+-- SHIFLOCK 
 --================================================================--
 local function enableShiftLockMobile()
     local CoreGui = game:GetService("CoreGui")
-    local RunService = game:GetService("RunService")
-    local Players = game:GetService("Players")
-    local Player = Players.LocalPlayer
-
+    
     local ShiftLockScreenGui = Instance.new("ScreenGui")
     ShiftLockScreenGui.Name = "Shiftlock (CoreGui)"
     ShiftLockScreenGui.Parent = CoreGui
@@ -340,7 +337,7 @@ local function enableShiftLockMobile()
     local MaxLength = 900000
     local EnabledOffset = CFrame.new(1.7, 0, 0)
     local DisabledOffset = CFrame.new(-1.7, 0, 0)
-    local Active
+    local ActiveConnection
 
     ShiftLockButton.BackgroundTransparency = 1
     ShiftLockButton.Position = UDim2.new(0.7, 0, 0.75, 0)
@@ -349,43 +346,104 @@ local function enableShiftLockMobile()
     ShiftLockButton.Image = States.Off
 
     ShiftLockButton.MouseButton1Click:Connect(function()
-        if not Active then
-            Active = RunService.RenderStepped:Connect(function()
-                if Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character:FindFirstChild("HumanoidRootPart") then
-                    Player.Character.Humanoid.AutoRotate = false
-                    ShiftLockButton.Image = States.On
-                    Player.Character.HumanoidRootPart.CFrame = CFrame.new(
-                        Player.Character.HumanoidRootPart.Position,
-                        Vector3.new(
-                            workspace.CurrentCamera.CFrame.LookVector.X * MaxLength,
-                            Player.Character.HumanoidRootPart.Position.Y,
-                            workspace.CurrentCamera.CFrame.LookVector.Z * MaxLength
-                        )
+        if not ActiveConnection then
+            ActiveConnection = RunService.RenderStepped:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+                    char.Humanoid.AutoRotate = false
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                        char.HumanoidRootPart.Position,
+                        char.HumanoidRootPart.Position + workspace.CurrentCamera.CFrame.LookVector * MaxLength
                     )
-                    workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame * EnabledOffset
-                    workspace.CurrentCamera.Focus = CFrame.fromMatrix(
-                        workspace.CurrentCamera.Focus.Position,
-                        workspace.CurrentCamera.CFrame.RightVector,
-                        workspace.CurrentCamera.CFrame.UpVector
-                    ) * EnabledOffset
                 end
             end)
+            ShiftLockButton.Image = States.On
         else
-            if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-                Player.Character.Humanoid.AutoRotate = true
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.AutoRotate = true
+            end
+            if ActiveConnection then
+                pcall(function() ActiveConnection:Disconnect() end)
+                ActiveConnection = nil
             end
             ShiftLockButton.Image = States.Off
-            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame * DisabledOffset
-            pcall(function()
-                Active:Disconnect()
-            end)
-            Active = nil
         end
     end)
 end
 
 --================================================================--
--- GUI: CREATE WINDOW (keep your original Info tab unchanged)
+-- SPEED BOOST
+--================================================================--
+
+
+
+
+
+
+
+--================================================================--
+-- BYPASS ADONIS ANTI CHEAT
+--================================================================--
+
+local g = getinfo or debug.getinfo
+local d = true
+local h = {}
+
+local x, y
+
+setthreadidentity(2)
+
+for i, v in getgc(true) do
+    if typeof(v) == "table" then
+        local a = rawget(v, "Detected")
+        local b = rawget(v, "Kill")
+    
+        if typeof(a) == "function" and not x then
+            x = a
+            
+            local o; o = hookfunction(x, function(c, f, n)
+                if c ~= "_" and d then
+                    warn(`Adonis AntiCheat flagged\nMethod: {c}\nInfo: {f}`)
+                end
+                return true
+            end)
+
+            table.insert(h, x)
+        end
+
+        if rawget(v, "Variables") and rawget(v, "Process") and typeof(b) == "function" and not y then
+            y = b
+
+            local o; o = hookfunction(y, function(f)
+                if d then
+                    warn(`Adonis AntiCheat tried to kill (fallback): {f}`)
+                end
+            end)
+
+            table.insert(h, y)
+        end
+    end
+end
+
+local o; o = hookfunction(getrenv().debug.info, newcclosure(function(...)
+    local a, f = ...
+
+    if x and a == x then
+        if d then
+            warn(`Bypass Adonis AntiCheat`)
+        end
+        return coroutine.yield(coroutine.running())
+    end
+    
+    return o(...)
+end))
+
+setthreadidentity(7)
+
+
+--================================================================--
+-- GUI
 --================================================================--
 local Window = Library:CreateWindow({
     Title = "Vgxmod Hub",
@@ -395,39 +453,53 @@ local Window = Library:CreateWindow({
     ShowCustomCursor = true,
 })
 
--- Info tab (kept identical to your original)
+-- INFO TAB
 local InfoTab = Window:AddTab("Info", "info")
-local InfoLeft = InfoTab:AddLeftGroupbox("Credits")
-local InfoRight = InfoTab:AddRightGroupbox("Discord")
+local InfoLeft = InfoTab:AddLeftGroupbox("Credits", "users")
+local InfoLeft2 = InfoTab:AddLeftGroupbox("Discord", "discord")
+local InfoRight = InfoTab:AddRightGroupbox("Reminder", "lucide-book-a")
 
-InfoLeft:AddLabel("Made By : Pkgx1")
-InfoLeft:AddLabel("Discord : https://discord.gg/n9gtmefsjc")
+InfoLeft:AddLabel("Made By: Pkgx1")
+InfoLeft:AddLabel("Discord: https://discord.gg/n9gtmefsjc")
 InfoLeft:AddDivider()
 InfoLeft:AddLabel("You Can Request Script")
-InfoLeft:AddLabel("On Discord !!!!!!!!?????")
+InfoLeft:AddLabel("On Discord!")
 InfoLeft:AddDivider()
 
-InfoRight:AddLabel("Discord Link")
-InfoRight:AddButton({
+
+InfoLeft2:AddLabel("Discord Link")
+InfoLeft2:AddButton({
     Text = "Copy",
     Func = function()
         setclipboard("https://discord.gg/n9gtmefsjc")
-        Library:Notify({
-            Title = "Copied!",
-            Description = "Paste it on your browser",
-            Time = 4,
-        })
+        Library:Notify({Title = "Copied!", Description = "Paste it on your browser", Time = 4})
     end,
 })
 
--- Main tab and groupboxes (matching VD-style organization)
-local MainTab = Window:AddTab("Main", "sword")
-local MainLeft = MainTab:AddLeftGroupbox("Hitbox Control")
-local MiscLeft = MainTab:AddLeftGroupbox("Misc Control")
-local MainRight = MainTab:AddRightGroupbox("Esp Control")
 
---=== Hitbox toggles & inputs (keeps same names/options)
-MainLeft:AddToggle("HitboxToggle", {
+InfoRight:AddLabel("MOBILE USER")
+InfoRight:AddLabel("To Close The Menu")
+InfoRight:AddLabel("Simply Click the Icon")
+InfoRight:AddLabel()
+InfoRight:AddLabel("PC USER")
+InfoRight:AddLabel("To Close the Menu")
+InfoRight:AddLabel("Just Press The CTRL")
+InfoRight:AddLabel()
+
+----------------------------------------------------------------
+-- MAIN TAB (4 GROUPBOX CLEAN ORGANIZATION)
+----------------------------------------------------------------
+local MainTab = Window:AddTab("Main", "house")
+
+local HitboxBox     = MainTab:AddLeftGroupbox("Hitbox", "scan")
+local EspBox        = MainTab:AddRightGroupbox("Esp","eye")
+local MiscBox       = MainTab:AddLeftGroupbox("Misc", "settings")
+local ProtectBox    = MainTab:AddRightGroupbox("Protection","shield")
+local PlayerRight = MainTab:AddRightGroupbox("Animation Control", "contact")
+----------------------------------------------------------------
+-- HITBOX SECTION
+----------------------------------------------------------------
+HitboxBox:AddToggle("HitboxToggle", {
     Text = "Enable Hitbox",
     Default = false,
     Callback = function(Value)
@@ -437,46 +509,52 @@ MainLeft:AddToggle("HitboxToggle", {
             Library:Notify({ Title = "Hitbox", Description = "Enabled", Time = 2 })
         else
             Options.HitboxToggle = { Value = false }
-            for _, connection in ipairs(hitboxConnections) do
-                pcall(function() connection:Disconnect() end)
-            end
+            for _, c in ipairs(hitboxConnections) do pcall(function() c:Disconnect() end) end
             hitboxConnections = {}
-            for _, pl in pairs(Players:GetPlayers()) do deactivateCollisionPart(pl.Name) end
+
+            for _, pl in pairs(Players:GetPlayers()) do
+                deactivateCollisionPart(pl.Name)
+            end
+
             Library:Notify({ Title = "Hitbox", Description = "Disabled", Time = 2 })
         end
     end,
 })
 
-MainLeft:AddInput("HitboxSizeInput", {
+HitboxBox:AddInput("HitboxSizeInput", {
     Default = "",
     Numeric = true,
     ClearTextOnFocus = true,
     Text = "Hitbox Size",
     Placeholder = "Enter size (max 15)",
     Callback = function(Value)
-        local maxHitboxSize = 15
-        local newSize = tonumber(Value)
-        if newSize then
-            if newSize > maxHitboxSize then newSize = maxHitboxSize end
-            if newSize < 0 then newSize = 0 end
-            currentHitboxSize = newSize
+        local max = 15
+        local size = tonumber(Value)
+
+        if size then
+            if size > max then size = max end
+            if size < 0 then size = 0 end
+
+            currentHitboxSize = size
+
             for _, pl in pairs(Players:GetPlayers()) do
                 if pl.Name ~= LocalPlayer.Name then
                     local pm = Workspace:FindFirstChild(pl.Name)
                     if pm then
                         local c = pm:FindFirstChild("CollisionPart")
                         if c and c:IsA("BasePart") then
-                            c.Size = Vector3.new(newSize, newSize, newSize)
+                            c.Size = Vector3.new(size, size, size)
                         end
                     end
                 end
             end
-            Library:Notify({ Title = "Hitbox Size", Description = "Set to " .. tostring(newSize), Time = 2 })
+
+            Library:Notify({ Title = "Hitbox Size", Description = "Set to " .. tostring(size), Time = 2 })
         end
     end,
 })
 
-MainLeft:AddToggle("ShowHitboxButtons", {
+HitboxBox:AddToggle("ShowHitboxButtons", {
     Text = "Show Hitbox Buttons",
     Default = false,
     Callback = function(Value)
@@ -495,8 +573,28 @@ MainLeft:AddToggle("ShowHitboxButtons", {
     end,
 })
 
---=== ESP Controls (Bomb + Tracer)
-MainRight:AddToggle("ESPNameToggle", {
+
+----------------------------------------------------------------
+-- PROTECTION SECTION (Adonis Bypass)
+----------------------------------------------------------------
+ProtectBox:AddToggle("AdonisBypassToggle", {
+    Text = "Bypass (AntiCheat)",
+    Default = true,
+    Callback = function(Value)
+        d = Value
+        if Value then
+            Library:Notify({ Title = "Adonis Bypass", Description = "Enabled", Time = 2 })
+        else
+            Library:Notify({ Title = "Adonis Bypass", Description = "Disabled", Time = 2 })
+        end
+    end,
+})
+
+
+----------------------------------------------------------------
+-- ESP SECTION
+----------------------------------------------------------------
+EspBox:AddToggle("ESPNameToggle", {
     Text = "ESP Bomb",
     Default = false,
     Callback = function(Value)
@@ -514,7 +612,7 @@ MainRight:AddToggle("ESPNameToggle", {
     end,
 })
 
-MainRight:AddToggle("ESPTracerToggle", {
+EspBox:AddToggle("ESPTracerToggle", {
     Text = "Tracer Bomb",
     Default = false,
     Callback = function(Value)
@@ -532,8 +630,11 @@ MainRight:AddToggle("ESPTracerToggle", {
     end,
 })
 
---=== Misc Buttons
-MiscLeft:AddButton({
+
+----------------------------------------------------------------
+-- MISC SECTION
+----------------------------------------------------------------
+MiscBox:AddButton({
     Text = "Max View",
     Func = function()
         LocalPlayer.CameraMaxZoomDistance = 500
@@ -542,7 +643,7 @@ MiscLeft:AddButton({
     end,
 })
 
-MiscLeft:AddButton({
+MiscBox:AddButton({
     Text = "Remove Explosion",
     Func = function()
         local debris = Workspace:FindFirstChild("DebrisFolder")
@@ -551,7 +652,7 @@ MiscLeft:AddButton({
     end,
 })
 
-MiscLeft:AddButton({
+MiscBox:AddButton({
     Text = "Shiftlock Mobile",
     Func = function()
         enableShiftLockMobile()
@@ -559,14 +660,9 @@ MiscLeft:AddButton({
     end,
 })
 
---================================================================--
--- PLAYER TAB (Movement / Animation)
---================================================================--
-local PlayerTab = Window:AddTab("Player", "user")
-local PlayerLeft = PlayerTab:AddLeftGroupbox("Movement Control")
-local PlayerRight = PlayerTab:AddRightGroupbox("Animation Control")
-
-PlayerLeft:AddLabel("Movement Like a Pro")
+----------------------------------------------------------------
+-- PLAYER TAB
+----------------------------------------------------------------
 
 PlayerRight:AddButton({
     Text = "Animation",
@@ -575,9 +671,9 @@ PlayerRight:AddButton({
     end,
 })
 
---================================================================--
--- SETTINGS TAB: Save/Load Config (kept behavior)
---================================================================--
+----------------------------------------------------------------
+-- SETTINGS TAB
+----------------------------------------------------------------
 local SettingsTab = Window:AddTab("Settings", "cog")
 
 ThemeManager:SetLibrary(Library)
