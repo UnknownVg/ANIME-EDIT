@@ -710,7 +710,7 @@ end
 -- INFINITY STAMINA 
 --================================================================--
 local rns = game:GetService("RunService")
-local staminaDisabled = true
+local staminaDisabled = false
 local connections = {}
 
 local function toggleInfinityStamina(state)
@@ -842,7 +842,7 @@ PlayerLeft:AddToggle("RemoveMonsterHitbox", {
 
 PlayerLeft:AddToggle("InfinityStamina", {
     Text = "Infinity Stamina",
-    Default = true,
+    Default = false,
     Callback = toggleInfinityStamina
 })
 
