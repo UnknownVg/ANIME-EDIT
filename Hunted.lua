@@ -113,7 +113,8 @@ local SettingsTab = Window:AddTab("Settings", "cog")
 --================================================================--
 -- INFO TAB
 --================================================================--
-local InfoLeft  = InfoTab:AddLeftGroupbox("Credits")
+local InfoTab = Window:AddTab("Info", "info")
+local InfoLeft = InfoTab:AddLeftGroupbox("Credits")
 local InfoRight = InfoTab:AddRightGroupbox("Discord")
 
 InfoLeft:AddLabel("Made By: Pkgx1")
@@ -121,23 +122,41 @@ InfoLeft:AddLabel("Discord: https://discord.gg/n9gtmefsjc")
 InfoLeft:AddDivider()
 InfoLeft:AddLabel("You Can Request Script")
 InfoLeft:AddLabel("On Discord!")
+InfoLeft:AddDivider()
 
-InfoRight:AddLabel("Discord Link")
-InfoRight:AddButton({
-Text = "Copy",
-Func = function()
-setclipboard("https://discord.gg/n9gtmefsjc")
-Library:Notify({Title = "Copied!", Description = "Paste it on your browser", Time = 4})
-end
+InfoLeft:AddLabel("Discord Link")
+InfoLeft:AddButton({
+    Text = "Copy",
+    Func = function()
+        setclipboard("https://discord.gg/n9gtmefsjc")
+        Library:Notify({Title = "Copied!", Description = "Paste it on your browser", Time = 4})
+    end,
 })
+
+
+InfoRight:AddLabel("MOBILE USER")
+InfoRight:AddLabel("To Close The Menu")
+InfoRight:AddLabel("Simply Click the Icon")
+InfoRight:AddLabel()
+InfoRight:AddLabel("PC USER")
+InfoRight:AddLabel("To Close the Menu")
+InfoRight:AddLabel("Just Press The CTRL")
+InfoRight:AddLabel()
 
 --================================================================--
 -- GROUPBOXES (MAP 1)
 --================================================================--
-local AutoLeft      = MainTab:AddLeftGroupbox("AUTOMATION", "cpu")
-local TpLeft        = MainTab:AddRightGroupbox("TELEPORT", "navigation")
-local ReminderLeft  = MainTab:AddLeftGroupbox("MAP 1", "map-pin")
-local ReminderRight = MainTab:AddRightGroupbox("MAP 2", "map")
+local AutoLeft = MainTab:AddLeftGroupbox("AUTOMATION", "cpu")
+local TpLeft = MainTab:AddRightGroupbox("TELEPORT", "navigation")
+local ReminderLeft = MainTab:AddLeftGroupbox("Reminder", "pin")
+--================================================================--
+-- REMINDER
+--================================================================--
+ReminderLeft:AddLabel("TO AVOID CRASH OR BUG")
+ReminderLeft:AddLabel("FINISH THE INTRO FIRST")
+ReminderLeft:AddLabel("BEFORE AUTO COLLECT SHARD")
+ReminderLeft:AddLabel("DO THIS TO ALL MAP HAVE FUN")
+
 --================================================================--
 -- AUTOMATION (MAP 1)
 --================================================================--
@@ -161,81 +180,99 @@ end,
 -- TELEPORT SYSTEM (AUTO DETECT MAP)
 --================================================================--
 
+local function teleportToOrb()
+	local player = game.Players.LocalPlayer
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		Library:Notify({Title = "Error", Description = "No HumanoidRootPart", Time = 3})
+		return
+	end
+
+	local placeId = game.PlaceId
+
+	if placeId == 102181577519757 then
+		local altar = workspace:FindFirstChild("Hotel", true)
+		if altar then altar = altar.Maze.Rooms.Main.RingAltar.Parts:FindFirstChild("RingAltar") end
+		if altar then
+			hrp.CFrame = altar.CFrame + Vector3.new(0, 3, 0)
+			Library:Notify({Title = "TP Success", Description = "Map 1 - Ring Altar", Time = 3})
+			return
+		end
+
+	elseif placeId == 125591428878906 then
+		hrp.CFrame = CFrame.new(-157.319611, 0.991705775, 401.749207, 0, 0, 1, 0, 1, 0, -1, 0, 0)
+		Library:Notify({Title = "TP Success", Description = "Map 2 - Classic Orb", Time = 3})
+		return
+	end
+
+	local statue = workspace:FindFirstChild("RingPiece", true)
+	if statue then statue = statue:FindFirstChild("Statue") end
+
+	if statue and statue:IsA("BasePart") then
+		for i = 1, 2 do
+			hrp.CFrame = statue.CFrame + Vector3.new(0, 10, 0)
+			task.wait(0.08)
+		end
+		Library:Notify({Title = "TP Success", Description = "Map 3 - RingPiece Statue", Time = 3})
+		return
+	end
+
+	task.spawn(function()
+		local ring = workspace:WaitForChild("RingPiece", 10)
+		if ring then
+			local s = ring:WaitForChild("Statue", 5)
+			if s then
+				hrp.CFrame = s.CFrame + Vector3.new(0, 10, 0)
+				Library:Notify({Title = "TP Success", Description = "Map 3 - RingPiece Statue", Time = 3})
+			end
+		end
+	end)
+end
+
 TpLeft:AddButton({
-    Text = "TP to Orb Piece",
-    Func = function()
-        local player = game.Players.LocalPlayer
-        local char = player.Character or player.CharacterAdded:Wait()
-        local hrp = char:FindFirstChild("HumanoidRootPart")
+	Text = "TP (Orb Piece)",
+	Func = teleportToOrb
+})
 
-        if not hrp then
-            Library:Notify({
-                Title = "TP Failed",
-                Description = "HumanoidRootPart missing!",
-                Time = 3
-            })
-            return
-        end
+local function teleportToExit()
+	local player = game.Players.LocalPlayer
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		Library:Notify({Title = "Error", Description = "No HumanoidRootPart", Time = 3})
+		return
+	end
 
-        ----------------------------------------------------------------
-        -- MAP 1 DETECTION
-        ----------------------------------------------------------------
-        local map1Exists = workspace:FindFirstChild("Hotel")
-        if map1Exists then
-            local altar
-            pcall(function()
-                altar = workspace.Hotel.Maze.Rooms.Main.RingAltar.Parts:FindFirstChild("RingAltar")
-            end)
+	local placeId = game.PlaceId
+	local portal = workspace.Portals:FindFirstChild("ExitPortal")
 
-            if altar and altar:IsA("BasePart") then
-                hrp.CFrame = altar.CFrame + Vector3.new(0, 2, 0)
+	if portal and portal:IsA("BasePart") then
+		hrp.CFrame = portal.CFrame + Vector3.new(0, -3, 0)
+		local mapName = placeId == 102181577519757 and "Map 1" or placeId == 125591428878906 and "Map 2" or "Map 3"
+		Library:Notify({Title = "TP Success", Description = mapName .. " - Exit Portal", Time = 3})
+		return
+	end
 
-                Library:Notify({
-                    Title = "TP Success",
-                    Description = "Teleported to Map 1 Ring Altar!",
-                    Time = 3
-                })
-                return
-            end
-        end
+	task.spawn(function()
+		local portals = workspace:WaitForChild("Portals", 10)
+		if portals then
+			local p = portals:WaitForChild("ExitPortal", 5)
+			if p then
+				hrp.CFrame = p.CFrame + Vector3.new(0, -3, 0)
+				local mapName = placeId == 102181577519757 and "Map 1" or placeId == 125591428878906 and "Map 2" or "Map 3"
+				Library:Notify({Title = "TP Success", Description = mapName .. " - Exit Portal", Time = 3})
+			end
+		end
+	end)
+end
 
-        ----------------------------------------------------------------
-        -- MAP 2 POSITION (your exact CFrame)
-        ----------------------------------------------------------------
-        local map2CFrame = CFrame.new(
-            -157.319611, 0.991705775, 401.749207,
-             0, 0, 1,
-             0, 1, 0,
-            -1, 0, 0
-        )
-
-        hrp.CFrame = map2CFrame
-
-        Library:Notify({
-            Title = "TP Success",
-            Description = "Teleported to Map 2 Orb Piece!",
-            Time = 3
-        })
-    end,
+TpLeft:AddButton({
+	Text = "TP (Exit Portal)",
+	Func = teleportToExit
 })
 
 
-
---================================================================--
--- REMINDER
---================================================================--
-ReminderLeft:AddLabel("To Avoid Crash Or Bug")
-ReminderLeft:AddLabel("Before Turn On The Auto Shards")
-ReminderLeft:AddLabel("Make Sure The Tutorial Is Already")
-ReminderLeft:AddLabel("Finish Yapping or Simply Skipp.")
-
---================================================================--
--- REMINDER2
---================================================================--
-ReminderRight:AddLabel("To Avoid Crash Or Bug")
-ReminderRight:AddLabel("Before Turn On The Auto Shards")
-ReminderRight:AddLabel("Make Sure You Open The Door First")
-ReminderRight:AddLabel("And Finish The Animation.")
 --================================================================--
 -- SETTINGS TAB
 --================================================================--
