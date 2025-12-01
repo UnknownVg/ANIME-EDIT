@@ -95,90 +95,15 @@ end)
 end
 end)
 
---================================================================--
--- GUI - LAYOUT
---================================================================--
-local Window = Library:CreateWindow({
-Title = "Vgxmod Hub",
-Footer = "version: 1.7",
-Icon = 94858886314945,
-NotifySide = "Right",
-ShowCustomCursor = true,
-})
-
-local InfoTab     = Window:AddTab("Info", "info")
-local MainTab     = Window:AddTab("Main", "house")
-local SettingsTab = Window:AddTab("Settings", "cog")
-
---================================================================--
--- INFO TAB
---================================================================--
-local InfoTab = Window:AddTab("Info", "info")
-local InfoLeft = InfoTab:AddLeftGroupbox("Credits")
-local InfoRight = InfoTab:AddRightGroupbox("Discord")
-
-InfoLeft:AddLabel("Made By: Pkgx1")
-InfoLeft:AddLabel("Discord: https://discord.gg/n9gtmefsjc")
-InfoLeft:AddDivider()
-InfoLeft:AddLabel("You Can Request Script")
-InfoLeft:AddLabel("On Discord!")
-InfoLeft:AddDivider()
-
-InfoLeft:AddLabel("Discord Link")
-InfoLeft:AddButton({
-    Text = "Copy",
-    Func = function()
-        setclipboard("https://discord.gg/n9gtmefsjc")
-        Library:Notify({Title = "Copied!", Description = "Paste it on your browser", Time = 4})
-    end,
-})
 
 
-InfoRight:AddLabel("MOBILE USER")
-InfoRight:AddLabel("To Close The Menu")
-InfoRight:AddLabel("Simply Click the Icon")
-InfoRight:AddLabel()
-InfoRight:AddLabel("PC USER")
-InfoRight:AddLabel("To Close the Menu")
-InfoRight:AddLabel("Just Press The CTRL")
-InfoRight:AddLabel()
+
+
 
 --================================================================--
--- GROUPBOXES (MAP 1)
+-- TP ORB
 --================================================================--
-local AutoLeft = MainTab:AddLeftGroupbox("AUTOMATION", "cpu")
-local TpLeft = MainTab:AddRightGroupbox("TELEPORT", "navigation")
-local ReminderLeft = MainTab:AddLeftGroupbox("Reminder", "pin")
---================================================================--
--- REMINDER
---================================================================--
-ReminderLeft:AddLabel("TO AVOID CRASH OR BUG")
-ReminderLeft:AddLabel("FINISH THE INTRO FIRST")
-ReminderLeft:AddLabel("BEFORE AUTO COLLECT SHARD")
-ReminderLeft:AddLabel("DO THIS TO ALL MAP HAVE FUN")
 
---================================================================--
--- AUTOMATION (MAP 1)
---================================================================--
-AutoLeft:AddToggle("AutoCollect", {
-Text = "Auto Collect Shards",
-Default = false,
-Callback = function(state)
-Collect.OrangeShard.Enabled = state
-Collect.RedShard.Enabled = state
-Collect.Shard.Enabled = state
-
-Library:Notify({  
-        Title = "Auto Collect",  
-        Description = state and "ON" or "OFF",  
-        Time = 2  
-    })  
-end,
-
-})
---================================================================--
--- TELEPORT SYSTEM (AUTO DETECT MAP)
---================================================================--
 
 local function teleportToOrb()
 	local player = game.Players.LocalPlayer
@@ -230,11 +155,10 @@ local function teleportToOrb()
 	end)
 end
 
-TpLeft:AddButton({
-	Text = "TP (Orb Piece)",
-	Func = teleportToOrb
-})
 
+--================================================================--
+-- TP EXIT
+--================================================================--
 local function teleportToExit()
 	local player = game.Players.LocalPlayer
 	local char = player.Character or player.CharacterAdded:Wait()
@@ -266,6 +190,107 @@ local function teleportToExit()
 		end
 	end)
 end
+
+
+
+
+
+
+--================================================================--
+-- GUI - LAYOUT
+--================================================================--
+local Window = Library:CreateWindow({
+Title = "Vgxmod Hub",
+Footer = "version: 1.7",
+Icon = 94858886314945,
+NotifySide = "Right",
+ShowCustomCursor = true,
+})
+
+
+
+
+--================================================================--
+-- INFO TAB
+--================================================================--
+local InfoTab = Window:AddTab("Info", "info")
+local InfoLeft = InfoTab:AddLeftGroupbox("Credits")
+local InfoRight = InfoTab:AddRightGroupbox("Discord")
+
+InfoLeft:AddLabel("Made By: Pkgx1")
+InfoLeft:AddLabel("Discord: https://discord.gg/n9gtmefsjc")
+InfoLeft:AddDivider()
+InfoLeft:AddLabel("You Can Request Script")
+InfoLeft:AddLabel("On Discord!")
+InfoLeft:AddDivider()
+
+InfoLeft:AddLabel("Discord Link")
+InfoLeft:AddButton({
+    Text = "Copy",
+    Func = function()
+        setclipboard("https://discord.gg/n9gtmefsjc")
+        Library:Notify({Title = "Copied!", Description = "Paste it on your browser", Time = 4})
+    end,
+})
+
+
+InfoRight:AddLabel("MOBILE USER")
+InfoRight:AddLabel("To Close The Menu")
+InfoRight:AddLabel("Simply Click the Icon")
+InfoRight:AddLabel()
+InfoRight:AddLabel("PC USER")
+InfoRight:AddLabel("To Close the Menu")
+InfoRight:AddLabel("Just Press The CTRL")
+InfoRight:AddLabel()
+
+
+
+--================================================================--
+-- TAB
+--================================================================--
+local MainTab     = Window:AddTab("Main", "house")
+local SettingsTab = Window:AddTab("Settings", "cog")
+
+local AutoLeft = MainTab:AddLeftGroupbox("AUTOMATION", "cpu")
+local TpLeft = MainTab:AddRightGroupbox("TELEPORT", "navigation")
+local ReminderLeft = MainTab:AddLeftGroupbox("Reminder", "pin")
+
+--================================================================--
+-- REMINDER
+--================================================================--
+ReminderLeft:AddLabel("TO AVOID CRASH OR BUG")
+ReminderLeft:AddLabel("FINISH THE INTRO FIRST")
+ReminderLeft:AddLabel("BEFORE AUTO COLLECT SHARD")
+ReminderLeft:AddLabel("DO THIS TO ALL MAP HAVE FUN")
+
+--================================================================--
+-- AUTOMATION (MAP 1)
+--================================================================--
+AutoLeft:AddToggle("AutoCollect", {
+Text = "Auto Collect Shards",
+Default = false,
+Callback = function(state)
+Collect.OrangeShard.Enabled = state
+Collect.RedShard.Enabled = state
+Collect.Shard.Enabled = state
+
+Library:Notify({  
+        Title = "Auto Collect",  
+        Description = state and "ON" or "OFF",  
+        Time = 2  
+    })  
+end,
+
+})
+--================================================================--
+-- TELEPORT SYSTEM (AUTO DETECT MAP)
+--================================================================--
+
+TpLeft:AddButton({
+	Text = "TP (Orb Piece)",
+	Func = teleportToOrb
+})
+
 
 TpLeft:AddButton({
 	Text = "TP (Exit Portal)",
