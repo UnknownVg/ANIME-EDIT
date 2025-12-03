@@ -152,13 +152,36 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+local function clearESP()
+    for obj in pairs(Tracked) do
+        local root = getRoot(obj)
+        if root then
+            local hl = root:FindFirstChild("OBJ_ESP_HL")
+            if hl then hl:Destroy() end
+            local bb = root:FindFirstChild("OBJ_ESP_BILLBOARD")
+            if bb then bb:Destroy() end
+        end
+    end
+end
+
 --================================================================--
 -- AUTO LOOT
 --================================================================--
 local AutoLootEnabled = false
 local visitedItems = {}
-local TELEPORT_DELAY = 0.2
+local TELEPORT_DELAY = 0.3
 local lastTeleportTime = 0
+local LOOT_DISTANCE = 5 -- adjustable distance in studs
+
+local function getRoot(obj)
+    if obj:IsA("BasePart") then
+        return obj
+    elseif obj:IsA("Model") then
+        return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+    else
+        return obj:FindFirstChildWhichIsA("BasePart", true)
+    end
+end
 
 RunService.Heartbeat:Connect(function(deltaTime)
     if not AutoLootEnabled then return end
@@ -168,15 +191,19 @@ RunService.Heartbeat:Connect(function(deltaTime)
     if lastTeleportTime < TELEPORT_DELAY then return end
     lastTeleportTime = 0
 
+    local hrp = LP.Character.HumanoidRootPart
     local targetFolder = Workspace:FindFirstChild("Items")
     if targetFolder then
         for _, item in ipairs(targetFolder:GetChildren()) do
             if not visitedItems[item] then
                 local root = getRoot(item)
                 if root then
-                    LP.Character.HumanoidRootPart.CFrame = root.CFrame + Vector3.new(0,3,0)
-                    visitedItems[item] = true
-                    break
+                    local distance = (hrp.Position - root.Position).Magnitude
+                    if distance <= LOOT_DISTANCE then
+                        LP.Character.HumanoidRootPart.CFrame = root.CFrame + Vector3.new(0,3,0)
+                        visitedItems[item] = true
+                        break
+                    end
                 end
             end
         end
@@ -197,6 +224,38 @@ task.spawn(function()
         task.wait(1)
     end
 end)
+
+--================================================================--
+-- MINE AURA
+--================================================================--
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MineRemote = ReplicatedStorage:FindFirstChild("shared/network/MiningNetwork@GlobalMiningEvents").Mine
+
+local rapidMineEnabled = false
+local fireRate = 0.01
+local direction = "Down"
+
+local directions = {
+    Down  = Vector3.new(0.21412847936153412, -7.5, -1.72323477268219),
+    Front = Vector3.new(-3.708040237426758, 0.9761229753494263, 9.235671043395996),
+    Right = Vector3.new(8.357162475585938, -5.373855113983154, 1.1311599016189575),
+    Up    = Vector3.new(0.21412847936153412, 7.5, -1.72323477268219),      -- example, adjust if needed
+    Left  = Vector3.new(-8.357162475585938, -5.373855113983154, 1.1311599016189575) -- example, adjust if needed
+}
+
+local function startRapidMine()
+    task.spawn(function()
+        while rapidMineEnabled do
+            local pos = directions[direction]
+            if pos then
+                MineRemote:FireServer(pos, 1)
+            end
+            task.wait(fireRate)
+        end
+    end)
+end
+
 
 --================================================================--
 -- GUI: CREATE WINDOW
@@ -251,6 +310,28 @@ local ESPRight = MainTab:AddRightGroupbox("ESP", "eye")
 --================================================================--
 -- AUTOMATION 
 --================================================================--
+AutoLeft:AddToggle("RapidMineToggle", {
+    Text = "Mine Aura",
+    Default = false,
+    Callback = function(state)
+        rapidMineEnabled = state
+        if rapidMineEnabled then
+            startRapidMine()
+        end
+    end
+})
+
+AutoLeft:AddDropdown("DirectionDropdown", {
+    Values = { "Down", "Up", "Left", "Right", "Front" },
+    Default = 1,
+    Multi = false,
+    Text = "Mine Direction",
+    Searchable = false,
+    Callback = function(Value)
+        direction = Value
+    end
+})
+
 AutoLeft:AddToggle("AutoLootTP", {
     Text = "Auto Loot",
     Default = false,
@@ -278,9 +359,11 @@ ESPRight:AddToggle("OreESP", {
     Default = false,
     Callback = function(state)
         ESPEnabled = state
+        if not ESPEnabled then
+            clearESP()
+        end
     end
 })
-
 --================================================================--
 -- SETTINGS TAB
 --================================================================--
