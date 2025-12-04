@@ -453,13 +453,58 @@ end))
 
 setthreadidentity(7)
 
+--================================================================--
+-- Auto Lock
+--================================================================--
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoidRoot = character:WaitForChild("HumanoidRootPart")
+
+local autoLockEnabled = false
+local lockDistance = 50
+
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = lockDistance
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = player.Character.HumanoidRootPart.Position
+            local distance = (targetPos - humanoidRoot.Position).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+    return closestPlayer
+end
+
+RunService.RenderStepped:Connect(function()
+    if autoLockEnabled and humanoidRoot and humanoidRoot.Parent then
+        local target = getClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = target.Character.HumanoidRootPart.Position
+            local direction = (Vector3.new(targetPos.X, humanoidRoot.Position.Y, targetPos.Z) - humanoidRoot.Position).Unit
+            humanoidRoot.CFrame = CFrame.new(humanoidRoot.Position, humanoidRoot.Position + direction)
+        end
+    end
+end)
+
+localPlayer.CharacterAdded:Connect(function(char)
+    character = char
+    humanoidRoot = character:WaitForChild("HumanoidRootPart")
+end)
 
 --================================================================--
 -- GUI
 --================================================================--
 local Window = Library:CreateWindow({
     Title = "Vgxmod Hub",
-    Footer = "version: 1.6",
+    Footer = "Pass The Bomb",
     Icon = 94858886314945,
     NotifySide = "Right",
     ShowCustomCursor = true,
@@ -585,7 +630,28 @@ HitboxBox:AddToggle("ShowHitboxButtons", {
     end,
 })
 
+HitboxBox:AddToggle("AutoLockToggle", {
+    Text = "Auto Lock",
+    Default = false,
+    Callback = function(state)
+        autoLockEnabled = state
+    end
+})
 
+HitboxBox:AddInput("AutoLockDistanceInput", {
+    Default = tostring(lockDistance),
+    Numeric = true,
+    ClearTextOnFocus = true,
+    Text = "Lock Distance",
+    Placeholder = "Enter max distance",
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num and num > 0 then
+            lockDistance = num
+            Library:Notify({Title = "Auto Lock", Description = "Lock distance set to "..num, Time = 2})
+        end
+    end
+})
 ----------------------------------------------------------------
 -- PROTECTION SECTION (Adonis Bypass)
 ----------------------------------------------------------------
