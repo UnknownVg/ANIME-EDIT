@@ -667,7 +667,7 @@ end
 --================================================================--
 -- GOD MOD SYSTEM 
 --================================================================--
-
+--[[
 
 local latestArgs = nil
 local running = false
@@ -704,7 +704,7 @@ local function toggleLoop(state)
 end
 
 
-
+]]
 
 --================================================================--
 -- INFINITY STAMINA 
@@ -827,12 +827,13 @@ AutoLeft:AddToggle("AutoInteractNPC", {
 -- PLAYER
 --================================================================--
 
-
+--[[
 PlayerLeft:AddToggle("GodModeToggle", {
     Text = "Always (SafeZone)",
     Default = false,
     Callback = toggleLoop
 })
+]]
 
 PlayerLeft:AddToggle("RemoveMonsterHitbox", {
     Text = "Anti Trap (Monster)",
