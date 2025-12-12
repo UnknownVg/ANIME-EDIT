@@ -467,6 +467,14 @@ local humanoidRoot = character:WaitForChild("HumanoidRootPart")
 local autoLockEnabled = false
 local lockDistance = 50
 
+--===== SNAPLINE (Drawing API) =====--
+local snapline = Drawing.new("Line")
+snapline.Thickness = 2
+snapline.Color = Color3.fromRGB(128, 0, 128) -- purple 
+snapline.Transparency = 1
+snapline.Visible = false
+
+--===== FIND CLOSEST PLAYER =====--
 local function getClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = lockDistance
@@ -483,22 +491,48 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
+--===== MAIN LOOP =====--
 RunService.RenderStepped:Connect(function()
-    if autoLockEnabled and humanoidRoot and humanoidRoot.Parent then
-        local target = getClosestPlayer()
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local targetPos = target.Character.HumanoidRootPart.Position
-            local direction = (Vector3.new(targetPos.X, humanoidRoot.Position.Y, targetPos.Z) - humanoidRoot.Position).Unit
-            humanoidRoot.CFrame = CFrame.new(humanoidRoot.Position, humanoidRoot.Position + direction)
+    if humanoidRoot and humanoidRoot.Parent then
+        local target = autoLockEnabled and getClosestPlayer() or nil
+        
+        if target and target.Character then
+            local targetHead = target.Character:FindFirstChild("Head")
+            local myHead = character:FindFirstChild("Head")
+
+            if targetHead and myHead then
+                --=== AUTO LOCK ===--
+                local targetPos = targetHead.Position
+                local direction = (Vector3.new(targetPos.X, humanoidRoot.Position.Y, targetPos.Z) - humanoidRoot.Position).Unit
+                humanoidRoot.CFrame = CFrame.new(humanoidRoot.Position, humanoidRoot.Position + direction)
+
+                --=== SNAPLINE UPDATE (HEAD → HEAD) ===--
+                local cam = workspace.CurrentCamera
+
+                local myScreen, myOnScreen = cam:WorldToViewportPoint(myHead.Position)
+                local targetScreen, targetOnScreen = cam:WorldToViewportPoint(targetHead.Position)
+
+                if myOnScreen and targetOnScreen then
+                    snapline.Visible = true
+                    snapline.From = Vector2.new(myScreen.X, myScreen.Y)
+                    snapline.To = Vector2.new(targetScreen.X, targetScreen.Y)
+                else
+                    snapline.Visible = false
+                end
+            else
+                snapline.Visible = false
+            end
+        else
+            snapline.Visible = false
         end
     end
 end)
 
+--===== CHARACTER RELOAD FIX =====--
 localPlayer.CharacterAdded:Connect(function(char)
     character = char
     humanoidRoot = character:WaitForChild("HumanoidRootPart")
 end)
-
 --================================================================--
 -- GUI
 --================================================================--
@@ -652,6 +686,7 @@ HitboxBox:AddInput("AutoLockDistanceInput", {
         end
     end
 })
+
 ----------------------------------------------------------------
 -- PROTECTION SECTION (Adonis Bypass)
 ----------------------------------------------------------------
